@@ -5,14 +5,14 @@ interface HelpModalProps {
 export function HelpModal({ onClose }: HelpModalProps) {
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:items-center"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
       onClick={onClose}
     >
       <div
-        className="my-8 w-full max-w-2xl rounded-lg bg-white p-5 shadow-xl"
+        className="flex max-h-[85dvh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="mb-4 flex items-center justify-between">
+        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 p-5 pb-4">
           <h2 className="text-lg font-semibold text-slate-800">使い方</h2>
           <button
             type="button"
@@ -24,7 +24,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           </button>
         </div>
 
-        <div className="space-y-5 text-sm leading-relaxed text-slate-700">
+        <div className="space-y-5 overflow-y-auto p-5 pt-4 text-sm leading-relaxed text-slate-700">
           <section>
             <h3 className="mb-1 font-medium text-slate-800">このツールについて</h3>
             <p>
