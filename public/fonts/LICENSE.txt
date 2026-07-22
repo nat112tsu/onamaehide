@@ -1,0 +1,10 @@
+M PLUS Rounded 1c
+Licensed under the SIL Open Font License, version 1.1.
+https://openfontlicense.org/
+
+Source: https://github.com/google/fonts/tree/main/ofl/mplusrounded1c
+Original project: https://github.com/coz-m/MPLUS_FONTS
+
+The .woff2 files in this directory are subset versions of the original
+Regular/Medium/Bold TTFs, containing only Basic Latin, Japanese kana,
+common punctuation, and Joyo Kanji glyphs to reduce file size.

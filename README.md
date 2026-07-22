@@ -37,6 +37,8 @@ npm run dev
 - PaddleOCR / PP-OCRv6（OCR、多言語対応、ONNX Runtime Webで実行、自己ホスト）
 - Canvas API（マスキング描画）
 - JSZip（複数画像のZIP書き出し）
+- M PLUS Rounded 1c（UIフォント。常用漢字・かな等にサブセットして自己ホスト。
+  範囲外の文字はシステムフォントにフォールバック）
 
 ## 既知の制約
 
