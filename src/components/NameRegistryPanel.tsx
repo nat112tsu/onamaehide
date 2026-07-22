@@ -38,7 +38,7 @@ export function NameRegistryPanel({ names, onNamesChange }: NameRegistryPanelPro
               addName()
             }
           }}
-          placeholder="例: すあ"
+          placeholder="例: 太郎"
           className="flex-1 rounded border border-slate-300 px-2 py-1.5 text-sm"
         />
         <button
