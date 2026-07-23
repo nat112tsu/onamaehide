@@ -1,5 +1,12 @@
 import { PaddleOcrService } from 'ppu-paddle-ocr/web'
+import * as ort from 'onnxruntime-web'
 import type { OcrWord } from './types'
+
+// onnxruntime-webはwasmPaths未設定だと既定でjsDelivr CDNから読み込む仕様のため、
+// 「画像は一切サーバーに送信されない」という前提を保つには自己ホストパスを明示する必要がある。
+// ppu-paddle-ocr側のインポート時に既定値が設定されるより後に実行されるよう、
+// モジュール読み込み時点で上書きする。
+ort.env.wasm.wasmPaths = '/ort/'
 
 let servicePromise: Promise<PaddleOcrService> | null = null
 

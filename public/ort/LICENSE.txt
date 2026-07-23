@@ -1,0 +1,8 @@
+ONNX Runtime Web
+Licensed under the MIT License.
+https://github.com/microsoft/onnxruntime
+
+These .wasm/.mjs files are the runtime binaries from the onnxruntime-web
+npm package (self-hosted here so the app makes zero external network
+requests; onnxruntime-web otherwise defaults to loading them from
+https://cdn.jsdelivr.net/npm/onnxruntime-web).
