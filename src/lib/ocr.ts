@@ -6,6 +6,9 @@ import type { OcrWord } from './types'
 // 「画像は一切サーバーに送信されない」という前提を保つには自己ホストパスを明示する必要がある。
 // ppu-paddle-ocr側のインポート時に既定値が設定されるより後に実行されるよう、
 // モジュール読み込み時点で上書きする。
+// 注意: `npm run dev`（Vite開発サーバー）では、public/配下のファイルをESM importで
+// 読み込むことをVite側が拒否するため、OCR初期化時にエラーが出ることがある
+// （`npm run build` && `vite preview`や実際の本番デプロイでは問題なく動作する）。
 ort.env.wasm.wasmPaths = '/ort/'
 
 let servicePromise: Promise<PaddleOcrService> | null = null

@@ -42,6 +42,7 @@ export function detectNameMasks(ocrWords: OcrWord[], names: string[]): MaskBox[]
         masks.push({
           id: `name-${word.id}`,
           rect: padRect(word.bbox),
+          shape: 'rect',
           source: 'name',
           label: name,
           enabled: true,
@@ -55,6 +56,7 @@ export function detectNameMasks(ocrWords: OcrWord[], names: string[]): MaskBox[]
         masks.push({
           id: `name-${word.id}`,
           rect: padRect(narrowed),
+          shape: 'rect',
           source: 'name',
           label: name,
           enabled: true,

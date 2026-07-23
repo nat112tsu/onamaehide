@@ -11,9 +11,12 @@ export interface OcrWord {
   bbox: Rect
 }
 
+export type MaskShape = 'rect' | 'circle'
+
 export interface MaskBox {
   id: string
   rect: Rect
+  shape: MaskShape
   source: 'manual' | 'name'
   label?: string
   enabled: boolean

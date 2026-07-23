@@ -89,6 +89,11 @@ export function HelpModal({ onClose }: HelpModalProps) {
             <h3 className="mb-1 font-medium text-slate-800">手動でのマスク編集</h3>
             <ul className="list-disc space-y-1 pl-5">
               <li>「編集」モードで画像上をドラッグすると、新しく矩形マスクを追加できます。</li>
+              <li>
+                「⚪ 丸スタンプ」を選んでいる間は、タップした位置に決まった大きさの丸いマスクを
+                即座に配置できます（アイコンなど丸い部分を隠すのに便利です）。大きさは
+                配置前に＋/−で調整できます。
+              </li>
               <li>マスクをクリックして選択すると、ドラッグで移動、角のハンドルでリサイズできます。</li>
               <li>選択した状態で「選択したマスクを削除」を押すと削除できます。</li>
               <li>

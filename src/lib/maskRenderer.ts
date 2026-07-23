@@ -21,7 +21,21 @@ export function applyMask(
   if (rect.width <= 0 || rect.height <= 0) return
 
   ctx.fillStyle = options.color
-  ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+  if (mask.shape === 'circle') {
+    ctx.beginPath()
+    ctx.ellipse(
+      rect.x + rect.width / 2,
+      rect.y + rect.height / 2,
+      rect.width / 2,
+      rect.height / 2,
+      0,
+      0,
+      Math.PI * 2,
+    )
+    ctx.fill()
+  } else {
+    ctx.fillRect(rect.x, rect.y, rect.width, rect.height)
+  }
 }
 
 export function renderMasked(

@@ -12,6 +12,10 @@ interface ImageCanvasProps {
 
 const HANDLE_SIZE = 14
 const MIN_RECT_SIZE = 6
+const MIN_STAMP_SIZE = 20
+const MAX_STAMP_SIZE = 300
+const STAMP_SIZE_STEP = 10
+const DEFAULT_STAMP_SIZE = 60
 
 type DragState =
   | { type: 'create'; startX: number; startY: number; current: Rect }
@@ -43,6 +47,8 @@ export function ImageCanvas({
   const [drag, setDrag] = useState<DragState>(null)
   const [zoom, setZoom] = useState(1)
   const [mode, setMode] = useState<'draw' | 'pan'>('draw')
+  const [tool, setTool] = useState<'rect' | 'stamp'>('rect')
+  const [stampSize, setStampSize] = useState(DEFAULT_STAMP_SIZE)
   const dragRef = useRef<DragState>(null)
 
   useEffect(() => {
@@ -94,7 +100,21 @@ export function ImageCanvas({
       ctx.strokeStyle = isSelected ? '#f97316' : 'rgba(15, 23, 42, 0.5)'
       ctx.lineWidth = Math.max(1.5, image.width / 500)
       ctx.setLineDash(mask.enabled ? [] : [8, 6])
-      ctx.strokeRect(mask.rect.x, mask.rect.y, mask.rect.width, mask.rect.height)
+      if (mask.shape === 'circle') {
+        ctx.beginPath()
+        ctx.ellipse(
+          mask.rect.x + mask.rect.width / 2,
+          mask.rect.y + mask.rect.height / 2,
+          mask.rect.width / 2,
+          mask.rect.height / 2,
+          0,
+          0,
+          Math.PI * 2,
+        )
+        ctx.stroke()
+      } else {
+        ctx.strokeRect(mask.rect.x, mask.rect.y, mask.rect.width, mask.rect.height)
+      }
 
       if (isSelected) {
         const handleSize = Math.max(HANDLE_SIZE, image.width / 60)
@@ -185,6 +205,26 @@ export function ImageCanvas({
     }
 
     setSelectedId(null)
+
+    if (tool === 'stamp') {
+      const rect: Rect = {
+        x: clamp(pos.x - stampSize / 2, 0, Math.max(0, image.width - stampSize)),
+        y: clamp(pos.y - stampSize / 2, 0, Math.max(0, image.height - stampSize)),
+        width: Math.min(stampSize, image.width),
+        height: Math.min(stampSize, image.height),
+      }
+      const newMask: MaskBox = {
+        id: `mask-${nextMaskId++}`,
+        rect,
+        shape: 'circle',
+        source: 'manual',
+        enabled: true,
+      }
+      onMasksChange([...image.masks, newMask])
+      setSelectedId(newMask.id)
+      return
+    }
+
     const next: DragState = {
       type: 'create',
       startX: pos.x,
@@ -266,6 +306,7 @@ export function ImageCanvas({
         const newMask: MaskBox = {
           id: `mask-${nextMaskId++}`,
           rect: finalRect,
+          shape: 'rect',
           source: 'manual',
           enabled: true,
         }
@@ -325,6 +366,55 @@ export function ImageCanvas({
             🖐 スクロール
           </button>
         </div>
+        {mode === 'draw' && (
+          <div className="flex gap-1 rounded bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setTool('rect')}
+              className={`rounded px-2.5 py-1 text-sm transition-colors ${
+                tool === 'rect'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              ▭ 四角
+            </button>
+            <button
+              type="button"
+              onClick={() => setTool('stamp')}
+              className={`rounded px-2.5 py-1 text-sm transition-colors ${
+                tool === 'stamp'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              ⚪ 丸スタンプ
+            </button>
+          </div>
+        )}
+        {mode === 'draw' && tool === 'stamp' && (
+          <div className="flex items-center gap-1 rounded bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setStampSize((s) => Math.max(MIN_STAMP_SIZE, s - STAMP_SIZE_STEP))}
+              disabled={stampSize <= MIN_STAMP_SIZE}
+              className="rounded px-2 py-1 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              −
+            </button>
+            <span className="min-w-[4rem] text-center text-xs text-slate-500">
+              スタンプ {stampSize}px
+            </span>
+            <button
+              type="button"
+              onClick={() => setStampSize((s) => Math.min(MAX_STAMP_SIZE, s + STAMP_SIZE_STEP))}
+              disabled={stampSize >= MAX_STAMP_SIZE}
+              className="rounded px-2 py-1 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ＋
+            </button>
+          </div>
+        )}
         <button
           type="button"
           onClick={deleteSelected}
@@ -364,9 +454,11 @@ export function ImageCanvas({
           )}
         </div>
         <span className="text-xs text-slate-400">
-          {mode === 'draw'
-            ? 'ドラッグで矩形マスクを追加・移動・角をドラッグでリサイズ。画像内をスクロールしたい場合は「スクロール」に切り替えてください'
-            : '画像内を指でスクロールできます。マスクを編集する場合は「編集」に切り替えてください'}
+          {mode !== 'draw'
+            ? '画像内を指でスクロールできます。マスクを編集する場合は「編集」に切り替えてください'
+            : tool === 'stamp'
+              ? 'タップした位置に丸スタンプを配置します。配置後はドラッグで移動、角をドラッグでリサイズできます'
+              : 'ドラッグで矩形マスクを追加・移動・角をドラッグでリサイズ。画像内をスクロールしたい場合は「スクロール」に切り替えてください'}
         </span>
       </div>
     </div>
