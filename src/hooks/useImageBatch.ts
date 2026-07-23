@@ -87,6 +87,5 @@ export function useImageBatch() {
     addFiles,
     updateMasks,
     removeImage,
-    rerunOcr: runOcr,
   }
 }

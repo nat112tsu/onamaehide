@@ -160,7 +160,6 @@ function App() {
               showMaskPreview={showMaskPreview}
               onShowMaskPreviewChange={setShowMaskPreview}
               onDownload={handleDownload}
-              downloadDisabled={!activeImage}
               downloadLabel={images.length > 1 ? 'ZIPで一括ダウンロード' : 'PNGをダウンロード'}
             />
             <ImageCanvas

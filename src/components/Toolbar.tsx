@@ -6,7 +6,6 @@ interface ToolbarProps {
   showMaskPreview: boolean
   onShowMaskPreviewChange: (show: boolean) => void
   onDownload: () => void
-  downloadDisabled?: boolean
   downloadLabel: string
 }
 
@@ -18,7 +17,6 @@ export function Toolbar({
   showMaskPreview,
   onShowMaskPreviewChange,
   onDownload,
-  downloadDisabled,
   downloadLabel,
 }: ToolbarProps) {
   return (
@@ -54,8 +52,7 @@ export function Toolbar({
       <button
         type="button"
         onClick={onDownload}
-        disabled={downloadDisabled}
-        className="ml-auto rounded bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+        className="ml-auto rounded bg-indigo-600 px-4 py-1.5 text-sm font-medium text-white"
       >
         {downloadLabel}
       </button>

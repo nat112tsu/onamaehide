@@ -62,6 +62,15 @@ export function ImageCanvas({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [image])
 
+  // 表示中の画像が切り替わった際に、前の画像のマスクを指したままの選択/ドラッグ状態が
+  // 残らないようリセットする（マスク編集によるimage更新では発火しないようimage.idのみを見る）。
+  useEffect(() => {
+    setSelectedId(null)
+    dragRef.current = null
+    setDrag(null)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [image.id])
+
   useEffect(() => {
     draw()
     // eslint-disable-next-line react-hooks/exhaustive-deps
