@@ -7,6 +7,7 @@ interface ImageCanvasProps {
   maskColor: string
   showOcrOverlay: boolean
   showMaskPreview: boolean
+  registeredNames: string[]
   onMasksChange: (masks: MaskBox[]) => void
 }
 
@@ -16,6 +17,10 @@ const MIN_STAMP_SIZE = 20
 const MAX_STAMP_SIZE = 300
 const STAMP_SIZE_STEP = 10
 const DEFAULT_STAMP_SIZE = 120
+const MIN_CHAR_SIZE = 10
+const MAX_CHAR_SIZE = 100
+const CHAR_SIZE_STEP = 4
+const DEFAULT_CHAR_SIZE = 28
 
 type DragState =
   | { type: 'create'; startX: number; startY: number; current: Rect }
@@ -39,6 +44,7 @@ export function ImageCanvas({
   maskColor,
   showOcrOverlay,
   showMaskPreview,
+  registeredNames,
   onMasksChange,
 }: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -49,7 +55,15 @@ export function ImageCanvas({
   const [mode, setMode] = useState<'draw' | 'pan'>('draw')
   const [tool, setTool] = useState<'rect' | 'stamp'>('rect')
   const [stampSize, setStampSize] = useState(DEFAULT_STAMP_SIZE)
+  const [charSize, setCharSize] = useState(DEFAULT_CHAR_SIZE)
   const dragRef = useRef<DragState>(null)
+
+  // 四角スタンプ（ドラッグせずタップした場合）の幅を決める文字数。登録名のうち
+  // 最も長いものに合わせておけば、表記ゆれのどれが実際に出ていても隠しきれる。
+  const registeredNameLength = Math.max(
+    0,
+    ...registeredNames.map((n) => n.trim()).filter(Boolean).map((n) => n.length),
+  )
 
   useEffect(() => {
     const base = document.createElement('canvas')
@@ -311,10 +325,31 @@ export function ImageCanvas({
     if (current?.type === 'create') {
       const pos = toImageCoords(e)
       const finalRect = normalizeRect(current.startX, current.startY, pos.x, pos.y)
+
       if (finalRect.width >= MIN_RECT_SIZE && finalRect.height >= MIN_RECT_SIZE) {
         const newMask: MaskBox = {
           id: `mask-${nextMaskId++}`,
           rect: finalRect,
+          shape: 'rect',
+          source: 'manual',
+          enabled: true,
+        }
+        onMasksChange([...image.masks, newMask])
+        setSelectedId(newMask.id)
+      } else if (registeredNameLength > 0) {
+        // ドラッグせずタップしただけの場合は、登録名の文字数に応じた大きさの四角を
+        // タップ位置中心に即配置する（丸スタンプと同様、細かい位置合わせは後からドラッグで行う）。
+        const width = charSize * registeredNameLength
+        const height = charSize
+        const rect: Rect = {
+          x: clamp(current.startX - width / 2, 0, Math.max(0, image.width - width)),
+          y: clamp(current.startY - height / 2, 0, Math.max(0, image.height - height)),
+          width: Math.min(width, image.width),
+          height: Math.min(height, image.height),
+        }
+        const newMask: MaskBox = {
+          id: `mask-${nextMaskId++}`,
+          rect,
           shape: 'rect',
           source: 'manual',
           enabled: true,
@@ -401,6 +436,29 @@ export function ImageCanvas({
             </button>
           </div>
         )}
+        {mode === 'draw' && tool === 'rect' && registeredNameLength > 0 && (
+          <div className="flex items-center gap-1 rounded bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setCharSize((s) => Math.max(MIN_CHAR_SIZE, s - CHAR_SIZE_STEP))}
+              disabled={charSize <= MIN_CHAR_SIZE}
+              className="rounded px-2 py-1 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              −
+            </button>
+            <span className="min-w-[4rem] text-center text-xs text-slate-500">
+              文字幅 {charSize}px
+            </span>
+            <button
+              type="button"
+              onClick={() => setCharSize((s) => Math.min(MAX_CHAR_SIZE, s + CHAR_SIZE_STEP))}
+              disabled={charSize >= MAX_CHAR_SIZE}
+              className="rounded px-2 py-1 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              ＋
+            </button>
+          </div>
+        )}
         {mode === 'draw' && tool === 'stamp' && (
           <div className="flex items-center gap-1 rounded bg-slate-100 p-1">
             <button
@@ -467,7 +525,9 @@ export function ImageCanvas({
             ? '画像内を指でスクロールできます。マスクを編集する場合は「編集」に切り替えてください'
             : tool === 'stamp'
               ? 'タップした位置に丸スタンプを配置します。配置後はドラッグで移動、角をドラッグでリサイズできます'
-              : 'ドラッグで矩形マスクを追加・移動・角をドラッグでリサイズ。画像内をスクロールしたい場合は「スクロール」に切り替えてください'}
+              : registeredNameLength > 0
+                ? 'タップすると登録名の文字数に応じた四角を配置します。ドラッグすれば好きな大きさの四角を追加できます'
+                : 'ドラッグで矩形マスクを追加・移動・角をドラッグでリサイズ。画像内をスクロールしたい場合は「スクロール」に切り替えてください'}
         </span>
       </div>
     </div>

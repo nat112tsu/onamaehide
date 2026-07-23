@@ -167,6 +167,7 @@ function App() {
               maskColor={maskColor}
               showOcrOverlay={showOcrOverlay}
               showMaskPreview={showMaskPreview}
+              registeredNames={registeredNames}
               onMasksChange={(masks) => updateMasks(activeImage.id, masks)}
             />
           </>
