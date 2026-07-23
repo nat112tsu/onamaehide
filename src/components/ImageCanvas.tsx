@@ -20,7 +20,7 @@ const DEFAULT_STAMP_SIZE = 120
 const MIN_CHAR_SIZE = 10
 const MAX_CHAR_SIZE = 100
 const CHAR_SIZE_STEP = 4
-const DEFAULT_CHAR_SIZE = 28
+const DEFAULT_CHAR_SIZE = 60
 
 type DragState =
   | { type: 'create'; startX: number; startY: number; current: Rect }
