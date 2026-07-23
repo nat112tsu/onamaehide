@@ -177,6 +177,10 @@ function App() {
           </p>
         )}
       </main>
+
+      <footer className="mx-auto max-w-5xl px-4 py-6 text-center text-xs text-slate-400">
+        Built with Claude Code
+      </footer>
     </div>
   )
 }
