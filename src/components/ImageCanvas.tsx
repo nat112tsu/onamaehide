@@ -15,7 +15,7 @@ const MIN_RECT_SIZE = 6
 const MIN_STAMP_SIZE = 20
 const MAX_STAMP_SIZE = 300
 const STAMP_SIZE_STEP = 10
-const DEFAULT_STAMP_SIZE = 60
+const DEFAULT_STAMP_SIZE = 120
 
 type DragState =
   | { type: 'create'; startX: number; startY: number; current: Rect }
