@@ -33,7 +33,7 @@ export function NameRegistryPanel({ names, onNamesChange }: NameRegistryPanelPro
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter') {
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
               e.preventDefault()
               addName()
             }

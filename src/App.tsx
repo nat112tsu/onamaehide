@@ -11,7 +11,7 @@ import { downloadAllAsZip } from './lib/zipExport'
 import { detectNameMasks } from './lib/nameDetection'
 
 function App() {
-  const { images, uploadErrors, addFiles, updateMasks, removeImage } = useImageBatch()
+  const { images, uploadErrors, addFiles, updateMasks, removeImage, clearAll } = useImageBatch()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [maskColor, setMaskColor] = useState('#ffffff')
   const [showOcrOverlay, setShowOcrOverlay] = useState(true)
@@ -57,6 +57,15 @@ function App() {
     addFiles(files)
   }
 
+  function handleClearAll() {
+    if (!window.confirm('登録した名前とアップロードした画像をすべて消去します。よろしいですか？')) {
+      return
+    }
+    clearAll()
+    setRegisteredNames([])
+    setActiveId(null)
+  }
+
   function handleDownload() {
     if (!activeImage) return
     if (images.length > 1) {
@@ -82,13 +91,24 @@ function App() {
             画像は一切サーバーに送信されません。すべての処理はこのブラウザ内で完結します。
           </p>
         </div>
-        <button
-          type="button"
-          onClick={() => setShowHelp(true)}
-          className="shrink-0 rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
-        >
-          使い方
-        </button>
+        <div className="flex shrink-0 items-center gap-2">
+          {(images.length > 0 || registeredNames.length > 0) && (
+            <button
+              type="button"
+              onClick={handleClearAll}
+              className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            >
+              すべてクリア
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={() => setShowHelp(true)}
+            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+          >
+            使い方
+          </button>
+        </div>
       </header>
 
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}

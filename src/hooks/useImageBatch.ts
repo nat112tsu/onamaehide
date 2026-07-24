@@ -81,11 +81,17 @@ export function useImageBatch() {
     setImages((prev) => prev.filter((img) => img.id !== id))
   }, [])
 
+  const clearAll = useCallback(() => {
+    setImages([])
+    setUploadErrors([])
+  }, [])
+
   return {
     images,
     uploadErrors,
     addFiles,
     updateMasks,
     removeImage,
+    clearAll,
   }
 }
