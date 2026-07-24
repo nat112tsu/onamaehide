@@ -13,7 +13,7 @@ import { detectNameMasks } from './lib/nameDetection'
 function App() {
   const { images, uploadErrors, addFiles, updateMasks, removeImage } = useImageBatch()
   const [activeId, setActiveId] = useState<string | null>(null)
-  const [maskColor, setMaskColor] = useState('#000000')
+  const [maskColor, setMaskColor] = useState('#ffffff')
   const [showOcrOverlay, setShowOcrOverlay] = useState(true)
   const [showMaskPreview, setShowMaskPreview] = useState(true)
   const [registeredNames, setRegisteredNames] = useState<string[]>([])
@@ -179,7 +179,17 @@ function App() {
       </main>
 
       <footer className="mx-auto max-w-5xl px-4 py-6 text-center text-xs text-slate-400">
-        Built with Claude Code
+        <p>
+          <a
+            href="https://marshmallow-qa.com/lz48smbin5dkc2b?t=DiRKR6&utm_medium=url_text&utm_source=promotion"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:text-slate-600"
+          >
+            お問い合わせ・ご要望はこちら（マシュマロ）
+          </a>
+        </p>
+        <p className="mt-1">Built with Claude Code</p>
       </footer>
     </div>
   )
