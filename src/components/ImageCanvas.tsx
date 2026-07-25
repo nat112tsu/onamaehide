@@ -14,6 +14,11 @@ interface ImageCanvasProps {
   canUndo: boolean
   onDownload: () => void
   downloadLabel: string
+  onShare: () => void
+  shareLabel: string
+  shareSupported: boolean
+  exportBusy: boolean
+  exportError: string | null
 }
 
 const HANDLE_SIZE = 14
@@ -59,6 +64,11 @@ export function ImageCanvas({
   canUndo,
   onDownload,
   downloadLabel,
+  onShare,
+  shareLabel,
+  shareSupported,
+  exportBusy,
+  exportError,
 }: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null)
@@ -602,13 +612,27 @@ export function ImageCanvas({
         >
           選択したマスクを削除
         </button>
-        <button
-          type="button"
-          onClick={onDownload}
-          className="min-h-11 rounded bg-indigo-600 px-3 text-sm font-medium text-white sm:hidden"
-        >
-          {downloadLabel}
-        </button>
+        <div className="flex w-full gap-2 sm:hidden">
+          {shareSupported && (
+            <button
+              type="button"
+              onClick={onShare}
+              disabled={exportBusy}
+              className="min-h-11 flex-1 rounded border border-indigo-300 px-3 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {shareLabel}
+            </button>
+          )}
+          <button
+            type="button"
+            onClick={onDownload}
+            disabled={exportBusy}
+            className="min-h-11 flex-1 rounded bg-indigo-600 px-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {downloadLabel}
+          </button>
+        </div>
+        {exportError && <p className="w-full text-xs text-red-600 sm:hidden">{exportError}</p>}
       </div>
     </div>
   )

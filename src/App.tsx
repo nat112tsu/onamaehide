@@ -1,13 +1,19 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { UploadZone } from './components/UploadZone'
 import { ImageCanvas } from './components/ImageCanvas'
 import { Toolbar } from './components/Toolbar'
 import { NameRegistryPanel } from './components/NameRegistryPanel'
 import { HelpModal } from './components/HelpModal'
 import { useImageBatch } from './hooks/useImageBatch'
-import { renderMasked } from './lib/maskRenderer'
-import { downloadCanvasAsPng } from './lib/exportImage'
+import {
+  canvasToPngBlob,
+  maskedBaseName,
+  releaseCanvas,
+  renderImageMasked,
+} from './lib/renderExport'
+import { downloadBlob } from './lib/exportImage'
 import { downloadAllAsZip } from './lib/zipExport'
+import { canShareFiles, shareFiles, shareMaskedImages } from './lib/shareImage'
 import { detectNameMasks } from './lib/nameDetection'
 
 function App() {
@@ -32,6 +38,13 @@ function App() {
   // 「すべてクリア」のたびに増やしてNameRegistryPanelをkeyで再マウントし、
   // パネル内部の入力途中テキストも確実に消す
   const [clearCount, setClearCount] = useState(0)
+  const [exportBusy, setExportBusy] = useState<null | 'share' | 'download'>(null)
+  const [exportError, setExportError] = useState<string | null>(null)
+  const [exportProgress, setExportProgress] = useState<{ done: number; total: number } | null>(null)
+  // 共有の準備が間に合わずiOSに弾かれたとき、生成済みFileを保持して再タップで共有する
+  const [shareRetry, setShareRetry] = useState(false)
+  const pendingShareRef = useRef<{ files: File[]; signature: string } | null>(null)
+  const shareSupported = useMemo(() => canShareFiles(), [])
 
   const activeImage = images.find((img) => img.id === activeId) ?? images[0] ?? null
   const isOcrRunning = images.some((img) => img.ocrStatus === 'running')
@@ -81,21 +94,110 @@ function App() {
     setClearCount((c) => c + 1)
   }
 
-  function handleDownload() {
+  async function runDownload() {
     if (!activeImage) return
-    if (images.length > 1) {
-      void downloadAllAsZip(images, maskColor)
+    setExportError(null)
+    setExportBusy('download')
+    try {
+      if (images.length > 1) {
+        await downloadAllAsZip(images, maskColor, (done, total) =>
+          setExportProgress({ done, total }),
+        )
+      } else {
+        const canvas = renderImageMasked(activeImage, maskColor)
+        const blob = await canvasToPngBlob(canvas)
+        releaseCanvas(canvas)
+        downloadBlob(blob, `${maskedBaseName(activeImage)}_masked.png`)
+      }
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : '画像の書き出しに失敗しました。')
+    } finally {
+      setExportBusy(null)
+      setExportProgress(null)
+    }
+  }
+
+  function handleDownload() {
+    if (exportBusy) return
+    void runDownload()
+  }
+
+  // 生成済みFileをそのまま使えるかの判定に使う。マスクや色が変わっていたら作り直す
+  function currentShareSignature() {
+    return `${maskColor}|${JSON.stringify(images.map((img) => [img.id, img.masks]))}`
+  }
+
+  async function finishPendingShare(files: File[]) {
+    try {
+      const outcome = await shareFiles(files)
+      if (outcome !== 'gesture-expired') {
+        pendingShareRef.current = null
+        setShareRetry(false)
+      }
+    } catch (err) {
+      pendingShareRef.current = null
+      setShareRetry(false)
+      setExportError(err instanceof Error ? err.message : '共有に失敗しました。')
+    }
+  }
+
+  async function prepareAndShare(signature: string) {
+    setExportError(null)
+    setExportBusy('share')
+    try {
+      const { outcome, files } = await shareMaskedImages(images, maskColor, (done, total) =>
+        setExportProgress({ done, total }),
+      )
+      if (outcome === 'gesture-expired') {
+        // 準備に時間がかかりiOSに弾かれた。エラーではなく「もう一度タップ」に誘導する
+        pendingShareRef.current = { files, signature }
+        setShareRetry(true)
+      } else {
+        pendingShareRef.current = null
+        setShareRetry(false)
+      }
+    } catch (err) {
+      setExportError(err instanceof Error ? err.message : '共有に失敗しました。')
+    } finally {
+      setExportBusy(null)
+      setExportProgress(null)
+    }
+  }
+
+  // iOSはユーザー操作から一定時間内にnavigator.shareを呼ぶ必要があるため、
+  // 再タップ時はawaitを挟まず同期的にshareFilesへ入る
+  function handleShare() {
+    if (exportBusy) return
+    const signature = currentShareSignature()
+    const pending = pendingShareRef.current
+    if (pending && pending.signature === signature) {
+      void finishPendingShare(pending.files)
       return
     }
-    const base = document.createElement('canvas')
-    base.width = activeImage.width
-    base.height = activeImage.height
-    const ctx = base.getContext('2d')
-    ctx?.drawImage(activeImage.imageBitmap, 0, 0)
-    const rendered = renderMasked(base, activeImage.masks, { color: maskColor })
-    const baseName = activeImage.file.name.replace(/\.[^.]+$/, '')
-    downloadCanvasAsPng(rendered, `${baseName}_masked.png`)
+    pendingShareRef.current = null
+    setShareRetry(false)
+    void prepareAndShare(signature)
   }
+
+  const downloadLabel =
+    exportBusy === 'download'
+      ? exportProgress
+        ? `書き出し中… (${exportProgress.done}/${exportProgress.total})`
+        : '書き出し中…'
+      : images.length > 1
+        ? 'ZIPで一括ダウンロード'
+        : 'PNGをダウンロード'
+
+  const shareLabel =
+    exportBusy === 'share'
+      ? exportProgress
+        ? `準備中… (${exportProgress.done}/${exportProgress.total})`
+        : '準備中…'
+      : shareRetry
+        ? '📤 もう一度タップして共有'
+        : images.length > 1
+          ? `📤 ${images.length}枚を共有`
+          : '📤 共有'
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900">
@@ -152,6 +254,12 @@ function App() {
           </div>
         )}
 
+        {exportError && (
+          <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            {exportError}
+          </div>
+        )}
+
         {images.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {images.map((img) => (
@@ -202,7 +310,11 @@ function App() {
               showMaskPreview={showMaskPreview}
               onShowMaskPreviewChange={setShowMaskPreview}
               onDownload={handleDownload}
-              downloadLabel={images.length > 1 ? 'ZIPで一括ダウンロード' : 'PNGをダウンロード'}
+              downloadLabel={downloadLabel}
+              onShare={handleShare}
+              shareLabel={shareLabel}
+              shareSupported={shareSupported}
+              exportBusy={exportBusy !== null}
               onRerunOcr={() => rerunOcr(activeImage.id)}
               ocrRunning={activeImage.ocrStatus === 'running'}
             />
@@ -217,7 +329,12 @@ function App() {
               onUndo={() => undoMasks(activeImage.id)}
               canUndo={canUndo(activeImage.id)}
               onDownload={handleDownload}
-              downloadLabel={images.length > 1 ? 'ZIPで一括ダウンロード' : 'PNGをダウンロード'}
+              downloadLabel={downloadLabel}
+              onShare={handleShare}
+              shareLabel={shareLabel}
+              shareSupported={shareSupported}
+              exportBusy={exportBusy !== null}
+              exportError={exportError}
             />
           </>
         ) : (

@@ -7,6 +7,10 @@ interface ToolbarProps {
   onShowMaskPreviewChange: (show: boolean) => void
   onDownload: () => void
   downloadLabel: string
+  onShare: () => void
+  shareLabel: string
+  shareSupported: boolean
+  exportBusy: boolean
   onRerunOcr: () => void
   ocrRunning: boolean
 }
@@ -20,6 +24,10 @@ export function Toolbar({
   onShowMaskPreviewChange,
   onDownload,
   downloadLabel,
+  onShare,
+  shareLabel,
+  shareSupported,
+  exportBusy,
   onRerunOcr,
   ocrRunning,
 }: ToolbarProps) {
@@ -64,14 +72,27 @@ export function Toolbar({
         {ocrRunning ? '検出中…' : '🔄 文字を再検出'}
       </button>
 
-      {/* モバイルでは操作バー側（ImageCanvas）のダウンロードボタンを使うため非表示 */}
-      <button
-        type="button"
-        onClick={onDownload}
-        className="hidden min-h-11 rounded bg-indigo-600 px-4 text-sm font-medium text-white sm:ml-auto sm:block"
-      >
-        {downloadLabel}
-      </button>
+      {/* モバイルでは操作バー側（ImageCanvas）のボタンを使うため非表示 */}
+      <div className="hidden items-center gap-2 sm:ml-auto sm:flex">
+        {shareSupported && (
+          <button
+            type="button"
+            onClick={onShare}
+            disabled={exportBusy}
+            className="min-h-11 rounded border border-indigo-300 px-4 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40"
+          >
+            {shareLabel}
+          </button>
+        )}
+        <button
+          type="button"
+          onClick={onDownload}
+          disabled={exportBusy}
+          className="min-h-11 rounded bg-indigo-600 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          {downloadLabel}
+        </button>
+      </div>
     </div>
   )
 }
