@@ -51,13 +51,18 @@ function runExclusive<T>(task: () => Promise<T>): Promise<T> {
 // 認識用クロップの画質は保ちつつ上限を設けて縮小する。
 const MAX_INPUT_DIMENSION = 1600
 
+// shouldRunは直列キューの順番が回ってきた時点で呼ばれ、falseを返すと推論せずnullを返す。
+// 「すべてクリア」などで対象画像が破棄済みの場合に、待機中の無駄な推論をスキップするために使う。
 export async function recognizeImage(
   image: ImageBitmap,
   onProgress?: (progress: number) => void,
-): Promise<OcrWord[]> {
+  shouldRun?: () => boolean,
+): Promise<OcrWord[] | null> {
   onProgress?.(0)
 
   return runExclusive(async () => {
+    if (shouldRun && !shouldRun()) return null
+
     const service = await getService()
 
     const scale = Math.min(1, MAX_INPUT_DIMENSION / Math.max(image.width, image.height))

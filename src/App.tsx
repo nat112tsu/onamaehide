@@ -18,6 +18,9 @@ function App() {
   const [showMaskPreview, setShowMaskPreview] = useState(true)
   const [registeredNames, setRegisteredNames] = useState<string[]>([])
   const [showHelp, setShowHelp] = useState(false)
+  // 「すべてクリア」のたびに増やしてNameRegistryPanelをkeyで再マウントし、
+  // パネル内部の入力途中テキストも確実に消す
+  const [clearCount, setClearCount] = useState(0)
 
   const activeImage = images.find((img) => img.id === activeId) ?? images[0] ?? null
   const isOcrRunning = images.some((img) => img.ocrStatus === 'running')
@@ -64,6 +67,7 @@ function App() {
     clearAll()
     setRegisteredNames([])
     setActiveId(null)
+    setClearCount((c) => c + 1)
   }
 
   function handleDownload() {
@@ -92,7 +96,7 @@ function App() {
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
-          {(images.length > 0 || registeredNames.length > 0) && (
+          {(images.length > 0 || registeredNames.length > 0 || uploadErrors.length > 0) && (
             <button
               type="button"
               onClick={handleClearAll}
@@ -114,7 +118,11 @@ function App() {
       {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
 
       <main className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
-        <NameRegistryPanel names={registeredNames} onNamesChange={setRegisteredNames} />
+        <NameRegistryPanel
+          key={clearCount}
+          names={registeredNames}
+          onNamesChange={setRegisteredNames}
+        />
 
         <UploadZone onFilesSelected={handleFilesSelected} errors={uploadErrors} />
 

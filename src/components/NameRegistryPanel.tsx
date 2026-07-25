@@ -33,7 +33,11 @@ export function NameRegistryPanel({ names, onNamesChange }: NameRegistryPanelPro
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={(e) => {
-            if (e.key === 'Enter' && !e.nativeEvent.isComposing) {
+            // isComposing: IME変換中のEnter（変換確定）を無視する
+            // keyCode 229: SafariはcompositionendをEnterのkeydownより先に発火するため
+            //   isComposingだけでは確定Enterを検出できない。Safariは該当keydownを
+            //   keyCode 229でマークするので、これも併せて無視する
+            if (e.key === 'Enter' && !e.nativeEvent.isComposing && e.nativeEvent.keyCode !== 229) {
               e.preventDefault()
               addName()
             }
