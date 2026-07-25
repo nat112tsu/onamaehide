@@ -9,9 +9,17 @@ interface ImageCanvasProps {
   showMaskPreview: boolean
   registeredNames: string[]
   onMasksChange: (masks: MaskBox[]) => void
+  onBeforeEdit: () => void
+  onUndo: () => void
+  canUndo: boolean
+  onDownload: () => void
+  downloadLabel: string
 }
 
 const HANDLE_SIZE = 14
+// リサイズハンドルの目標サイズ（CSSピクセル）。ヒット判定は±この値なので
+// 実質44px四方のグラブ領域になり、スマホの指でも掴める。
+const HANDLE_TOUCH_CSS_PX = 22
 const MIN_RECT_SIZE = 6
 const MIN_STAMP_SIZE = 20
 const MAX_STAMP_SIZE = 300
@@ -46,13 +54,19 @@ export function ImageCanvas({
   showMaskPreview,
   registeredNames,
   onMasksChange,
+  onBeforeEdit,
+  onUndo,
+  canUndo,
+  onDownload,
+  downloadLabel,
 }: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drag, setDrag] = useState<DragState>(null)
   const [zoom, setZoom] = useState(1)
-  const [mode, setMode] = useState<'draw' | 'pan'>('draw')
+  // 初期状態はスクロール。スマホで画像を眺めている最中に誤ってマスクを置いてしまうのを防ぐ
+  const [mode, setMode] = useState<'draw' | 'pan'>('pan')
   const [tool, setTool] = useState<'rect' | 'stamp'>('rect')
   const [stampSize, setStampSize] = useState(DEFAULT_STAMP_SIZE)
   const [charSize, setCharSize] = useState(DEFAULT_CHAR_SIZE)
@@ -87,8 +101,28 @@ export function ImageCanvas({
 
   useEffect(() => {
     draw()
+    // ハンドルサイズが表示スケール依存になったため、zoomの変化でも再描画する
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [image.masks, image.ocrWords, showOcrOverlay, showMaskPreview, maskColor, selectedId, drag])
+  }, [
+    image.masks,
+    image.ocrWords,
+    showOcrOverlay,
+    showMaskPreview,
+    maskColor,
+    selectedId,
+    drag,
+    zoom,
+  ])
+
+  // ウィンドウリサイズ・画面回転などで表示スケールが変わった際にハンドルサイズを追従させる
+  useEffect(() => {
+    const canvas = canvasRef.current
+    if (!canvas) return
+    const observer = new ResizeObserver(() => draw())
+    observer.observe(canvas)
+    return () => observer.disconnect()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   function draw() {
     const canvas = canvasRef.current
@@ -140,7 +174,7 @@ export function ImageCanvas({
       }
 
       if (isSelected) {
-        const handleSize = Math.max(HANDLE_SIZE, image.width / 60)
+        const handleSize = getHandleSize(mask.rect)
         ctx.setLineDash([])
         ctx.fillStyle = '#f97316'
         for (const [hx, hy] of cornerPoints(mask.rect)) {
@@ -179,8 +213,22 @@ export function ImageCanvas({
     }
   }
 
+  // ハンドルサイズ（画像ピクセル単位）。キャンバスは縮小表示されるため、画像ピクセル固定だと
+  // スマホでは数物理ピクセルまで潰れて掴めない。表示スケールから逆算して、画面上で常に
+  // HANDLE_TOUCH_CSS_PX程度の大きさになるようにする（高ズーム時はHANDLE_SIZEを下限とする）。
+  // ただし小さいマスクではハンドル判定がマスク全体を覆い、移動しようとしても必ず
+  // リサイズになってしまうため、中央に移動用の領域が残るよう短辺の1/3を上限とする。
+  function getHandleSize(rect?: Rect): number {
+    const canvasWidth = canvasRef.current?.getBoundingClientRect().width
+    const base = canvasWidth
+      ? Math.max(HANDLE_SIZE, HANDLE_TOUCH_CSS_PX / (canvasWidth / image.width))
+      : Math.max(HANDLE_SIZE, image.width / 60)
+    if (!rect) return base
+    return Math.min(base, Math.min(rect.width, rect.height) / 3)
+  }
+
   function hitTestHandle(pos: { x: number; y: number }, rect: Rect): DragState {
-    const handleSize = Math.max(HANDLE_SIZE, image.width / 60)
+    const handleSize = getHandleSize(rect)
     const corners: { corner: 'nw' | 'ne' | 'sw' | 'se'; x: number; y: number }[] = [
       { corner: 'nw', x: rect.x, y: rect.y },
       { corner: 'ne', x: rect.x + rect.width, y: rect.y },
@@ -205,6 +253,7 @@ export function ImageCanvas({
       if (selectedMask) {
         const handleHit = hitTestHandle(pos, selectedMask.rect)
         if (handleHit && handleHit.type === 'resize') {
+          onBeforeEdit()
           const next: DragState = { type: 'resize', id: selectedId, corner: handleHit.corner }
           dragRef.current = next
           setDrag(next)
@@ -215,6 +264,8 @@ export function ImageCanvas({
 
     const hitMask = [...image.masks].reverse().find((m) => isInsideRect(pos, m.rect))
     if (hitMask) {
+      // タップ選択のみで動かさなかった場合のスナップショットはフック側の重複ガードで吸収される
+      onBeforeEdit()
       setSelectedId(hitMask.id)
       const next: DragState = {
         type: 'move',
@@ -243,6 +294,7 @@ export function ImageCanvas({
         source: 'manual',
         enabled: true,
       }
+      onBeforeEdit()
       onMasksChange([...image.masks, newMask])
       setSelectedId(newMask.id)
       return
@@ -334,6 +386,7 @@ export function ImageCanvas({
           source: 'manual',
           enabled: true,
         }
+        onBeforeEdit()
         onMasksChange([...image.masks, newMask])
         setSelectedId(newMask.id)
       } else if (registeredNameLength > 0) {
@@ -354,6 +407,7 @@ export function ImageCanvas({
           source: 'manual',
           enabled: true,
         }
+        onBeforeEdit()
         onMasksChange([...image.masks, newMask])
         setSelectedId(newMask.id)
       }
@@ -368,7 +422,14 @@ export function ImageCanvas({
 
   function deleteSelected() {
     if (!selectedId) return
+    onBeforeEdit()
     onMasksChange(image.masks.filter((m) => m.id !== selectedId))
+    setSelectedId(null)
+  }
+
+  function handleUndo() {
+    onUndo()
+    // 復元後のマスク一覧に存在しないIDを指したままにしない
     setSelectedId(null)
   }
 
@@ -386,63 +447,13 @@ export function ImageCanvas({
         />
       </div>
       <div className="flex flex-wrap items-center gap-2">
-        <div className="flex gap-1 rounded bg-slate-100 p-1">
-          <button
-            type="button"
-            onClick={() => setMode('draw')}
-            className={`rounded px-2.5 py-1 text-sm transition-colors ${
-              mode === 'draw'
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            ✏️ 編集
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('pan')}
-            className={`rounded px-2.5 py-1 text-sm transition-colors ${
-              mode === 'pan'
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
-            }`}
-          >
-            🖐 スクロール
-          </button>
-        </div>
-        {mode === 'draw' && (
-          <div className="flex gap-1 rounded bg-slate-100 p-1">
-            <button
-              type="button"
-              onClick={() => setTool('rect')}
-              className={`rounded px-2.5 py-1 text-sm transition-colors ${
-                tool === 'rect'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              ▭ 四角
-            </button>
-            <button
-              type="button"
-              onClick={() => setTool('stamp')}
-              className={`rounded px-2.5 py-1 text-sm transition-colors ${
-                tool === 'stamp'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
-              }`}
-            >
-              ⚪ 丸スタンプ
-            </button>
-          </div>
-        )}
         {mode === 'draw' && tool === 'rect' && registeredNameLength > 0 && (
           <div className="flex items-center gap-1 rounded bg-slate-100 p-1">
             <button
               type="button"
               onClick={() => setCharSize((s) => Math.max(MIN_CHAR_SIZE, s - CHAR_SIZE_STEP))}
               disabled={charSize <= MIN_CHAR_SIZE}
-              className="rounded px-2 py-1 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
               −
             </button>
@@ -453,7 +464,7 @@ export function ImageCanvas({
               type="button"
               onClick={() => setCharSize((s) => Math.min(MAX_CHAR_SIZE, s + CHAR_SIZE_STEP))}
               disabled={charSize >= MAX_CHAR_SIZE}
-              className="rounded px-2 py-1 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ＋
             </button>
@@ -465,7 +476,7 @@ export function ImageCanvas({
               type="button"
               onClick={() => setStampSize((s) => Math.max(MIN_STAMP_SIZE, s - STAMP_SIZE_STEP))}
               disabled={stampSize <= MIN_STAMP_SIZE}
-              className="rounded px-2 py-1 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
               −
             </button>
@@ -476,26 +487,18 @@ export function ImageCanvas({
               type="button"
               onClick={() => setStampSize((s) => Math.min(MAX_STAMP_SIZE, s + STAMP_SIZE_STEP))}
               disabled={stampSize >= MAX_STAMP_SIZE}
-              className="rounded px-2 py-1 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
             >
               ＋
             </button>
           </div>
         )}
-        <button
-          type="button"
-          onClick={deleteSelected}
-          disabled={!selectedId}
-          className="rounded bg-red-50 px-3 py-1.5 text-sm font-medium text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          選択したマスクを削除
-        </button>
         <div className="flex items-center gap-1 rounded bg-slate-100 p-1">
           <button
             type="button"
             onClick={() => setZoom((z) => Math.max(1, Math.round((z - 0.25) * 100) / 100))}
             disabled={zoom <= 1}
-            className="rounded px-2 py-1 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
           >
             −
           </button>
@@ -506,7 +509,7 @@ export function ImageCanvas({
             type="button"
             onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.25) * 100) / 100))}
             disabled={zoom >= 3}
-            className="rounded px-2 py-1 text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
           >
             ＋
           </button>
@@ -514,7 +517,7 @@ export function ImageCanvas({
             <button
               type="button"
               onClick={() => setZoom(1)}
-              className="rounded px-2 py-1 text-xs text-indigo-600"
+              className="min-h-11 rounded px-3 text-xs text-indigo-600"
             >
               リセット
             </button>
@@ -529,6 +532,83 @@ export function ImageCanvas({
                 ? 'タップすると登録名の文字数に応じた四角を配置します。ドラッグすれば好きな大きさの四角を追加できます'
                 : 'ドラッグで矩形マスクを追加・移動・角をドラッグでリサイズ。画像内をスクロールしたい場合は「スクロール」に切り替えてください'}
         </span>
+      </div>
+      {/* 主要操作バー: モバイルではキャンバスが画面外に続く間だけ下部に固定表示される
+          （stickyなので通過後は流れに戻り、フッター等を覆わない） */}
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t border-slate-200 bg-white/95 px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur sm:static sm:z-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-0 sm:pb-0 sm:backdrop-blur-none">
+        <div className="flex gap-1 rounded bg-slate-100 p-1">
+          <button
+            type="button"
+            onClick={() => setMode('draw')}
+            className={`min-h-11 rounded px-3 text-sm transition-colors ${
+              mode === 'draw'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            ✏️ 編集
+          </button>
+          <button
+            type="button"
+            onClick={() => setMode('pan')}
+            className={`min-h-11 rounded px-3 text-sm transition-colors ${
+              mode === 'pan'
+                ? 'bg-white text-indigo-600 shadow-sm'
+                : 'text-slate-500 hover:text-slate-700'
+            }`}
+          >
+            🖐 スクロール
+          </button>
+        </div>
+        {mode === 'draw' && (
+          <div className="flex gap-1 rounded bg-slate-100 p-1">
+            <button
+              type="button"
+              onClick={() => setTool('rect')}
+              className={`min-h-11 rounded px-3 text-sm transition-colors ${
+                tool === 'rect'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              ▭ 四角
+            </button>
+            <button
+              type="button"
+              onClick={() => setTool('stamp')}
+              className={`min-h-11 rounded px-3 text-sm transition-colors ${
+                tool === 'stamp'
+                  ? 'bg-white text-indigo-600 shadow-sm'
+                  : 'text-slate-500 hover:text-slate-700'
+              }`}
+            >
+              ⚪ 丸スタンプ
+            </button>
+          </div>
+        )}
+        <button
+          type="button"
+          onClick={handleUndo}
+          disabled={!canUndo}
+          className="min-h-11 rounded bg-slate-100 px-3 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          ↩︎ 元に戻す
+        </button>
+        <button
+          type="button"
+          onClick={deleteSelected}
+          disabled={!selectedId}
+          className="min-h-11 rounded bg-red-50 px-3 text-sm font-medium text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+        >
+          選択したマスクを削除
+        </button>
+        <button
+          type="button"
+          onClick={onDownload}
+          className="min-h-11 rounded bg-indigo-600 px-3 text-sm font-medium text-white sm:hidden"
+        >
+          {downloadLabel}
+        </button>
       </div>
     </div>
   )

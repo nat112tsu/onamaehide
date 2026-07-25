@@ -5,6 +5,8 @@ import { recognizeImage } from '../lib/ocr'
 
 let nextImageId = 0
 
+const MAX_HISTORY = 20
+
 export function useImageBatch() {
   const [images, setImages] = useState<ImageItem[]>([])
   const [uploadErrors, setUploadErrors] = useState<string[]>([])
@@ -17,6 +19,13 @@ export function useImageBatch() {
   // 非同期処理から参照すると古い内容が見えるため、追加/削除と同時に
   // 命令的に更新するこのセットを生存判定に使う。
   const aliveIdsRef = useRef<Set<string>>(new Set())
+  // Undo履歴: 画像IDごとに「編集直前のマスク配列」のスナップショットを積む。
+  // マスク配列は全編集箇所でイミュータブルに置き換えられるため、参照のまま保存できる。
+  // 履歴に積むのはbeginMaskEditを明示的に呼んだユーザー操作のみで、
+  // App.tsxの名前自動検出effectによるupdateMasksは履歴に入らない。
+  const historyRef = useRef<Map<string, MaskBox[][]>>(new Map())
+  // historyRefの変更でcanUndoの表示を更新するための再レンダートリガー
+  const [, setHistoryVersion] = useState(0)
 
   const runOcr = useCallback(async (id: string, bitmap: ImageBitmap) => {
     setImages((prev) =>
@@ -107,8 +116,56 @@ export function useImageBatch() {
     [runOcr],
   )
 
+  // 自動検出が走らなかった・失敗した場合に、ユーザー操作でOCRをやり直すための入口。
+  // 既存の手動マスクはApp側のeffectが source!=='name' として保持するため消えない。
+  const rerunOcr = useCallback(
+    (id: string) => {
+      const img = imagesRef.current.find((i) => i.id === id)
+      if (!img || img.ocrStatus === 'running') return
+      void runOcr(id, img.imageBitmap)
+    },
+    [runOcr],
+  )
+
   const updateMasks = useCallback((id: string, masks: MaskBox[]) => {
     setImages((prev) => prev.map((img) => (img.id === id ? { ...img, masks } : img)))
+  }, [])
+
+  // ユーザー操作（作成/移動/リサイズ/削除）の開始時に呼び、編集前の状態を履歴に積む。
+  // 移動/リサイズはpointermoveごとにupdateMasksが走るため、ジェスチャ開始時の
+  // 1回だけ記録する（updateMasks内で記録すると1ドラッグで数十件積まれてしまう）。
+  const beginMaskEdit = useCallback((id: string) => {
+    const img = imagesRef.current.find((i) => i.id === id)
+    if (!img) return
+    const stack = historyRef.current.get(id) ?? []
+    // タップ選択だけで編集しなかった場合などの重複スナップショットは積まない
+    if (stack[stack.length - 1] === img.masks) return
+    stack.push(img.masks)
+    if (stack.length > MAX_HISTORY) stack.shift()
+    historyRef.current.set(id, stack)
+    setHistoryVersion((v) => v + 1)
+  }, [])
+
+  const undoMasks = useCallback((id: string) => {
+    const stack = historyRef.current.get(id)
+    if (!stack || stack.length === 0) return
+    const img = imagesRef.current.find((i) => i.id === id)
+    // 「記録したが実際には編集されなかった」no-opスナップショットを飛ばす
+    let snapshot = stack.pop()
+    while (snapshot !== undefined && img && snapshot === img.masks) {
+      snapshot = stack.pop()
+    }
+    if (snapshot === undefined) {
+      setHistoryVersion((v) => v + 1)
+      return
+    }
+    const restored = snapshot
+    setImages((prev) => prev.map((i) => (i.id === id ? { ...i, masks: restored } : i)))
+    setHistoryVersion((v) => v + 1)
+  }, [])
+
+  const canUndo = useCallback((id: string) => {
+    return (historyRef.current.get(id)?.length ?? 0) > 0
   }, [])
 
   // OCR完了/失敗済みの画像はrunOcrがもう触らないので、ここでビットマップを解放できる。
@@ -121,6 +178,7 @@ export function useImageBatch() {
 
   const removeImage = useCallback((id: string) => {
     aliveIdsRef.current.delete(id)
+    historyRef.current.delete(id)
     const target = imagesRef.current.find((img) => img.id === id)
     if (target) closeBitmapIfIdle(target)
     setImages((prev) => prev.filter((img) => img.id !== id))
@@ -129,6 +187,7 @@ export function useImageBatch() {
   const clearAll = useCallback(() => {
     batchEpochRef.current++
     aliveIdsRef.current.clear()
+    historyRef.current.clear()
     for (const img of imagesRef.current) {
       closeBitmapIfIdle(img)
     }
@@ -140,7 +199,11 @@ export function useImageBatch() {
     images,
     uploadErrors,
     addFiles,
+    rerunOcr,
     updateMasks,
+    beginMaskEdit,
+    undoMasks,
+    canUndo,
     removeImage,
     clearAll,
   }

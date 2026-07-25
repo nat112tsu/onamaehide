@@ -11,7 +11,18 @@ import { downloadAllAsZip } from './lib/zipExport'
 import { detectNameMasks } from './lib/nameDetection'
 
 function App() {
-  const { images, uploadErrors, addFiles, updateMasks, removeImage, clearAll } = useImageBatch()
+  const {
+    images,
+    uploadErrors,
+    addFiles,
+    rerunOcr,
+    updateMasks,
+    beginMaskEdit,
+    undoMasks,
+    canUndo,
+    removeImage,
+    clearAll,
+  } = useImageBatch()
   const [activeId, setActiveId] = useState<string | null>(null)
   const [maskColor, setMaskColor] = useState('#ffffff')
   const [showOcrOverlay, setShowOcrOverlay] = useState(true)
@@ -100,7 +111,7 @@ function App() {
             <button
               type="button"
               onClick={handleClearAll}
-              className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+              className="min-h-11 rounded border border-slate-300 px-3 text-sm text-slate-600 hover:bg-slate-50"
             >
               すべてクリア
             </button>
@@ -108,7 +119,7 @@ function App() {
           <button
             type="button"
             onClick={() => setShowHelp(true)}
-            className="rounded border border-slate-300 px-3 py-1.5 text-sm text-slate-600 hover:bg-slate-50"
+            className="min-h-11 rounded border border-slate-300 px-3 text-sm text-slate-600 hover:bg-slate-50"
           >
             使い方
           </button>
@@ -144,36 +155,39 @@ function App() {
         {images.length > 0 && (
           <div className="flex flex-wrap gap-2">
             {images.map((img) => (
-              <button
+              <div
                 key={img.id}
-                type="button"
-                onClick={() => setActiveId(img.id)}
-                className={`flex items-center gap-2 rounded border px-3 py-1.5 text-sm ${
+                className={`flex items-stretch overflow-hidden rounded border text-sm ${
                   (activeImage?.id ?? images[0]?.id) === img.id
                     ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
                     : 'border-slate-200 bg-white text-slate-600'
                 }`}
               >
-                <span className="max-w-[10rem] truncate">{img.file.name}</span>
-                {img.ocrStatus === 'running' && (
-                  <span className="text-xs text-slate-400">OCR中…</span>
-                )}
-                {img.ocrStatus === 'error' && (
-                  <span className="text-xs text-red-500">OCR失敗</span>
-                )}
-                <span
-                  role="button"
-                  tabIndex={0}
-                  onClick={(e) => {
-                    e.stopPropagation()
+                <button
+                  type="button"
+                  onClick={() => setActiveId(img.id)}
+                  className="flex min-h-11 items-center gap-2 px-3"
+                >
+                  <span className="max-w-[10rem] truncate">{img.file.name}</span>
+                  {img.ocrStatus === 'running' && (
+                    <span className="text-xs text-slate-400">OCR中…</span>
+                  )}
+                  {img.ocrStatus === 'error' && (
+                    <span className="text-xs text-red-500">OCR失敗</span>
+                  )}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
                     removeImage(img.id)
                     if (activeId === img.id) setActiveId(null)
                   }}
-                  className="text-slate-400 hover:text-red-500"
+                  aria-label={`${img.file.name} を削除`}
+                  className="flex min-w-11 items-center justify-center text-slate-400 hover:text-red-500"
                 >
                   ×
-                </span>
-              </button>
+                </button>
+              </div>
             ))}
           </div>
         )}
@@ -189,6 +203,8 @@ function App() {
               onShowMaskPreviewChange={setShowMaskPreview}
               onDownload={handleDownload}
               downloadLabel={images.length > 1 ? 'ZIPで一括ダウンロード' : 'PNGをダウンロード'}
+              onRerunOcr={() => rerunOcr(activeImage.id)}
+              ocrRunning={activeImage.ocrStatus === 'running'}
             />
             <ImageCanvas
               image={activeImage}
@@ -197,6 +213,11 @@ function App() {
               showMaskPreview={showMaskPreview}
               registeredNames={registeredNames}
               onMasksChange={(masks) => updateMasks(activeImage.id, masks)}
+              onBeforeEdit={() => beginMaskEdit(activeImage.id)}
+              onUndo={() => undoMasks(activeImage.id)}
+              canUndo={canUndo(activeImage.id)}
+              onDownload={handleDownload}
+              downloadLabel={images.length > 1 ? 'ZIPで一括ダウンロード' : 'PNGをダウンロード'}
             />
           </>
         ) : (
