@@ -124,14 +124,19 @@ export function ImageCanvas({
     zoom,
   ])
 
-  // ウィンドウリサイズ・画面回転などで表示スケールが変わった際にハンドルサイズを追従させる
+  // ウィンドウリサイズ・画面回転などで表示スケールが変わった際にハンドルサイズを追従させる。
+  // Observerはマウント時に1度だけ作るため、drawを直接渡すと初回レンダー時点の
+  // クロージャ（マスクもOCR結果も空）を掴んだままになり、画像切り替え等でサイズが
+  // 変わったときに空の状態で描き直してしまう。常に最新のdrawを呼ぶためrefを経由する。
+  const drawRef = useRef(draw)
+  drawRef.current = draw
+
   useEffect(() => {
     const canvas = canvasRef.current
     if (!canvas) return
-    const observer = new ResizeObserver(() => draw())
+    const observer = new ResizeObserver(() => drawRef.current())
     observer.observe(canvas)
     return () => observer.disconnect()
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   function draw() {
