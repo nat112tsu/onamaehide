@@ -4,6 +4,8 @@ import { ImageCanvas } from './components/ImageCanvas'
 import { Toolbar } from './components/Toolbar'
 import { NameRegistryPanel } from './components/NameRegistryPanel'
 import { HelpModal } from './components/HelpModal'
+import { OnboardingScreen } from './components/OnboardingScreen'
+import { StepIndicator, type Step } from './components/StepIndicator'
 import { useImageBatch } from './hooks/useImageBatch'
 import {
   canvasToPngBlob,
@@ -19,6 +21,16 @@ import { detectNameMasks } from './lib/nameDetection'
 type Theme = 'light' | 'dark'
 
 const THEME_STORAGE_KEY = 'onamaehide-theme'
+const ONBOARDED_STORAGE_KEY = 'onamaehide-onboarded'
+
+function hasSeenOnboarding(): boolean {
+  try {
+    return localStorage.getItem(ONBOARDED_STORAGE_KEY) === '1'
+  } catch {
+    // localStorageが使えない環境では毎回出さない（邪魔になるため）
+    return true
+  }
+}
 
 function getInitialTheme(): Theme {
   try {
@@ -60,6 +72,7 @@ function App() {
   const pendingShareRef = useRef<{ files: File[]; signature: string } | null>(null)
   const shareSupported = useMemo(() => canShareFiles(), [])
   const [theme, setTheme] = useState<Theme>(getInitialTheme)
+  const [showOnboarding, setShowOnboarding] = useState(() => !hasSeenOnboarding())
 
   useEffect(() => {
     document.documentElement.classList.toggle('dark', theme === 'dark')
@@ -107,6 +120,18 @@ function App() {
   function handleFilesSelected(files: File[]) {
     addFiles(files)
   }
+
+  function dismissOnboarding() {
+    setShowOnboarding(false)
+    try {
+      localStorage.setItem(ONBOARDED_STORAGE_KEY, '1')
+    } catch {
+      // 保存できなくても、このセッション中は非表示のまま進める
+    }
+  }
+
+  // いまどこまで進んだかを状態から算出する（名前→画像→保存）
+  const currentStep: Step = images.length > 0 ? 3 : registeredNames.length > 0 ? 2 : 1
 
   function handleClearAll() {
     if (!window.confirm('登録した名前とアップロードした画像をすべて消去します。よろしいですか？')) {
@@ -260,9 +285,21 @@ function App() {
         </div>
       </header>
 
-      {showHelp && <HelpModal onClose={() => setShowHelp(false)} />}
+      {showOnboarding && <OnboardingScreen onStart={dismissOnboarding} />}
+
+      {showHelp && (
+        <HelpModal
+          onClose={() => setShowHelp(false)}
+          onReplayOnboarding={() => {
+            setShowHelp(false)
+            setShowOnboarding(true)
+          }}
+        />
+      )}
 
       <main className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
+        <StepIndicator current={currentStep} />
+
         <NameRegistryPanel
           key={clearCount}
           names={registeredNames}

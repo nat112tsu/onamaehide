@@ -1,8 +1,9 @@
 interface HelpModalProps {
   onClose: () => void
+  onReplayOnboarding: () => void
 }
 
-export function HelpModal({ onClose }: HelpModalProps) {
+export function HelpModal({ onClose, onReplayOnboarding }: HelpModalProps) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
@@ -25,6 +26,14 @@ export function HelpModal({ onClose }: HelpModalProps) {
         </div>
 
         <div className="space-y-5 overflow-y-auto p-5 pt-4 text-sm leading-relaxed text-ink">
+          <button
+            type="button"
+            onClick={onReplayOnboarding}
+            className="min-h-11 w-full rounded-xl bg-primary-soft px-3 text-sm font-bold text-primary"
+          >
+            はじめの説明をもう一度見る
+          </button>
+
           <section>
             <h3 className="mb-1 font-medium text-ink">このツールについて</h3>
             <p>
