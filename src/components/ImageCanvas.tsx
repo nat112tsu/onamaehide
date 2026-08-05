@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
 import type { ImageItem, MaskBox, Rect } from '../lib/types'
 import { renderMasked } from '../lib/maskRenderer'
+import { EditToolBar, type EditorTool } from './EditToolBar'
+import { SelectionBar } from './SelectionBar'
 
 interface ImageCanvasProps {
   image: ImageItem
@@ -26,14 +28,12 @@ const HANDLE_SIZE = 14
 // 実質44px四方のグラブ領域になり、スマホの指でも掴める。
 const HANDLE_TOUCH_CSS_PX = 22
 const MIN_RECT_SIZE = 6
-const MIN_STAMP_SIZE = 20
-const MAX_STAMP_SIZE = 300
-const STAMP_SIZE_STEP = 10
 const DEFAULT_STAMP_SIZE = 120
-const MIN_CHAR_SIZE = 10
-const MAX_CHAR_SIZE = 100
-const CHAR_SIZE_STEP = 4
 const DEFAULT_CHAR_SIZE = 60
+const MIN_ZOOM = 1
+const MAX_ZOOM = 3
+// マスクを小さくしすぎて掴めなくなるのを防ぐ下限（画像ピクセル）
+const MIN_MASK_SIZE = 12
 
 type DragState =
   | { type: 'create'; startX: number; startY: number; current: Rect }
@@ -72,15 +72,21 @@ export function ImageCanvas({
 }: ImageCanvasProps) {
   const canvasRef = useRef<HTMLCanvasElement>(null)
   const baseCanvasRef = useRef<HTMLCanvasElement | null>(null)
+  const scrollRef = useRef<HTMLDivElement>(null)
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [drag, setDrag] = useState<DragState>(null)
   const [zoom, setZoom] = useState(1)
-  // 初期状態はスクロール。スマホで画像を眺めている最中に誤ってマスクを置いてしまうのを防ぐ
-  const [mode, setMode] = useState<'draw' | 'pan'>('pan')
-  const [tool, setTool] = useState<'rect' | 'stamp'>('rect')
-  const [stampSize, setStampSize] = useState(DEFAULT_STAMP_SIZE)
-  const [charSize, setCharSize] = useState(DEFAULT_CHAR_SIZE)
+  // 初期は「うごかす」。画像を眺めている最中に誤ってマスクを置いてしまうのを防ぐ
+  const [tool, setTool] = useState<EditorTool>('pan')
+  // スタンプ・文字幅はタップ配置時の初期サイズを決めるだけの内部設定。
+  // 配置後の調整はSelectionBarの −/＋ で行うため、UIには出さない。
+  const [stampSize] = useState(DEFAULT_STAMP_SIZE)
+  const [charSize] = useState(DEFAULT_CHAR_SIZE)
   const dragRef = useRef<DragState>(null)
+  // ピンチズームと1本指スクロールのために、接触中のポインタを自前で管理する
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const pinchRef = useRef<{ startDist: number; startZoom: number } | null>(null)
+  const panRef = useRef<{ x: number; y: number } | null>(null)
 
   // 四角スタンプ（ドラッグせずタップした場合）の幅を決める文字数。登録名のうち
   // 最も長いものに合わせておけば、表記ゆれのどれが実際に出ていても隠しきれる。
@@ -258,9 +264,33 @@ export function ImageCanvas({
     return null
   }
 
+  function pointerDistance() {
+    const [a, b] = [...pointersRef.current.values()]
+    if (!a || !b) return 0
+    return Math.hypot(a.x - b.x, a.y - b.y)
+  }
+
   function handlePointerDown(e: React.PointerEvent<HTMLCanvasElement>) {
-    if (mode === 'pan') return
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+
+    // 2本指になったらピンチズームに切り替える。進行中の編集/スクロールは打ち切る
+    if (pointersRef.current.size === 2) {
+      pinchRef.current = { startDist: pointerDistance(), startZoom: zoom }
+      dragRef.current = null
+      setDrag(null)
+      panRef.current = null
+      return
+    }
+    if (pointersRef.current.size > 2) return
+
     e.currentTarget.setPointerCapture(e.pointerId)
+
+    // 「うごかす」では1本指ドラッグで画像内をスクロールする
+    if (tool === 'pan') {
+      panRef.current = { x: e.clientX, y: e.clientY }
+      return
+    }
+
     const pos = toImageCoords(e)
 
     if (selectedId) {
@@ -295,7 +325,7 @@ export function ImageCanvas({
 
     setSelectedId(null)
 
-    if (tool === 'stamp') {
+    if (tool === 'icon') {
       const rect: Rect = {
         x: clamp(pos.x - stampSize / 2, 0, Math.max(0, image.width - stampSize)),
         y: clamp(pos.y - stampSize / 2, 0, Math.max(0, image.height - stampSize)),
@@ -335,6 +365,29 @@ export function ImageCanvas({
   }
 
   function handlePointerMove(e: React.PointerEvent<HTMLCanvasElement>) {
+    if (pointersRef.current.has(e.pointerId)) {
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    }
+
+    if (pinchRef.current && pointersRef.current.size >= 2) {
+      const dist = pointerDistance()
+      if (pinchRef.current.startDist > 0 && dist > 0) {
+        const next = pinchRef.current.startZoom * (dist / pinchRef.current.startDist)
+        setZoom(Math.round(clamp(next, MIN_ZOOM, MAX_ZOOM) * 100) / 100)
+      }
+      return
+    }
+
+    if (panRef.current) {
+      const container = scrollRef.current
+      if (container) {
+        container.scrollLeft -= e.clientX - panRef.current.x
+        container.scrollTop -= e.clientY - panRef.current.y
+      }
+      panRef.current = { x: e.clientX, y: e.clientY }
+      return
+    }
+
     const current = dragRef.current
     if (!current) return
     const pos = toImageCoords(e)
@@ -388,6 +441,18 @@ export function ImageCanvas({
   }
 
   function handlePointerUp(e: React.PointerEvent<HTMLCanvasElement>) {
+    pointersRef.current.delete(e.pointerId)
+
+    // ピンチの片方を離しただけではマスクを作らない（誤配置を防ぐ）
+    if (pinchRef.current) {
+      if (pointersRef.current.size < 2) pinchRef.current = null
+      return
+    }
+    if (panRef.current) {
+      panRef.current = null
+      return
+    }
+
     const current = dragRef.current
     if (current?.type === 'create') {
       const pos = toImageCoords(e)
@@ -435,6 +500,31 @@ export function ImageCanvas({
     return Math.min(Math.max(v, min), Math.max(min, max))
   }
 
+  // 選択中のマスクを中心を保ったまま拡大/縮小する（SelectionBarの −/＋ から呼ぶ）
+  function resizeMask(factor: number) {
+    if (!selectedId) return
+    const mask = image.masks.find((m) => m.id === selectedId)
+    if (!mask) return
+    const cx = mask.rect.x + mask.rect.width / 2
+    const cy = mask.rect.y + mask.rect.height / 2
+    const width = clamp(mask.rect.width * factor, MIN_MASK_SIZE, image.width)
+    const height = clamp(mask.rect.height * factor, MIN_MASK_SIZE, image.height)
+    const rect: Rect = {
+      x: clamp(cx - width / 2, 0, Math.max(0, image.width - width)),
+      y: clamp(cy - height / 2, 0, Math.max(0, image.height - height)),
+      width,
+      height,
+    }
+    onBeforeEdit()
+    onMasksChange(image.masks.map((m) => (m.id === selectedId ? { ...m, rect } : m)))
+  }
+
+  function handleToolChange(next: EditorTool) {
+    setTool(next)
+    // 「うごかす」中は選択の操作列を出さないので、選択も解除しておく
+    if (next === 'pan') setSelectedId(null)
+  }
+
   function deleteSelected() {
     if (!selectedId) return
     onBeforeEdit()
@@ -448,196 +538,75 @@ export function ImageCanvas({
     setSelectedId(null)
   }
 
+  const selectedMask = selectedId ? image.masks.find((m) => m.id === selectedId) : undefined
+  const hint =
+    tool === 'pan'
+      ? '指でスクロール、2本指で拡大できます'
+      : tool === 'icon'
+        ? 'タップした場所に丸をおきます'
+        : registeredNameLength > 0
+          ? 'タップでなまえの大きさの四角、ドラッグで好きな大きさ'
+          : 'ドラッグで四角をおきます'
+
   return (
     <div className="flex flex-col gap-2">
-      <div className="max-h-[70vh] overflow-auto rounded border border-line bg-bg">
+      <div
+        ref={scrollRef}
+        className="max-h-[70vh] overflow-auto rounded-2xl border border-line bg-bg"
+      >
         <canvas
           ref={canvasRef}
           onPointerDown={handlePointerDown}
           onPointerMove={handlePointerMove}
           onPointerUp={handlePointerUp}
           onPointerCancel={handlePointerUp}
-          className={`block select-none ${mode === 'draw' ? 'touch-none' : 'touch-pan-y'}`}
+          /* スクロールもピンチも自前で処理するため、ブラウザ既定のタッチ操作は止める */
+          className="block touch-none select-none"
           style={{ width: `${zoom * 100}%` }}
         />
       </div>
-      <div className="flex flex-wrap items-center gap-2">
-        {mode === 'draw' && tool === 'rect' && registeredNameLength > 0 && (
-          <div className="flex items-center gap-1 rounded bg-bg p-1">
-            <button
-              type="button"
-              onClick={() => setCharSize((s) => Math.max(MIN_CHAR_SIZE, s - CHAR_SIZE_STEP))}
-              disabled={charSize <= MIN_CHAR_SIZE}
-              className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              −
-            </button>
-            <span className="min-w-[4rem] text-center text-xs text-mut">
-              文字幅 {charSize}px
-            </span>
-            <button
-              type="button"
-              onClick={() => setCharSize((s) => Math.min(MAX_CHAR_SIZE, s + CHAR_SIZE_STEP))}
-              disabled={charSize >= MAX_CHAR_SIZE}
-              className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ＋
-            </button>
-          </div>
-        )}
-        {mode === 'draw' && tool === 'stamp' && (
-          <div className="flex items-center gap-1 rounded bg-bg p-1">
-            <button
-              type="button"
-              onClick={() => setStampSize((s) => Math.max(MIN_STAMP_SIZE, s - STAMP_SIZE_STEP))}
-              disabled={stampSize <= MIN_STAMP_SIZE}
-              className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              −
-            </button>
-            <span className="min-w-[4rem] text-center text-xs text-mut">
-              スタンプ {stampSize}px
-            </span>
-            <button
-              type="button"
-              onClick={() => setStampSize((s) => Math.min(MAX_STAMP_SIZE, s + STAMP_SIZE_STEP))}
-              disabled={stampSize >= MAX_STAMP_SIZE}
-              className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              ＋
-            </button>
-          </div>
-        )}
-        <div className="flex items-center gap-1 rounded bg-bg p-1">
+
+      <div className="flex items-center gap-2">
+        <span className="text-aux text-mut">{hint}</span>
+        {zoom !== 1 && (
           <button
             type="button"
-            onClick={() => setZoom((z) => Math.max(1, Math.round((z - 0.25) * 100) / 100))}
-            disabled={zoom <= 1}
-            className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
+            onClick={() => setZoom(1)}
+            className="ml-auto rounded-full bg-bg px-3 py-1 text-aux text-primary"
           >
-            −
+            {Math.round(zoom * 100)}% ・ もとに戻す
           </button>
-          <span className="min-w-[3rem] text-center text-xs text-mut">
-            {Math.round(zoom * 100)}%
-          </span>
-          <button
-            type="button"
-            onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.25) * 100) / 100))}
-            disabled={zoom >= 3}
-            className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            ＋
-          </button>
-          {zoom !== 1 && (
-            <button
-              type="button"
-              onClick={() => setZoom(1)}
-              className="min-h-11 rounded px-3 text-xs text-primary"
-            >
-              リセット
-            </button>
-          )}
-        </div>
-        <span className="text-xs text-mut">
-          {mode !== 'draw'
-            ? '画像内を指でスクロールできます。マスクを編集する場合は「編集」に切り替えてください'
-            : tool === 'stamp'
-              ? 'タップした位置に丸スタンプを配置します。配置後はドラッグで移動、角をドラッグでリサイズできます'
-              : registeredNameLength > 0
-                ? 'タップすると登録名の文字数に応じた四角を配置します。ドラッグすれば好きな大きさの四角を追加できます'
-                : 'ドラッグで矩形マスクを追加・移動・角をドラッグでリサイズ。画像内をスクロールしたい場合は「スクロール」に切り替えてください'}
-        </span>
+        )}
       </div>
+
       {/* 主要操作バー: モバイルではキャンバスが画面外に続く間だけ下部に固定表示される
           （stickyなので通過後は流れに戻り、フッター等を覆わない） */}
       <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t border-line bg-surface/95 px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur sm:static sm:z-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-0 sm:pb-0 sm:backdrop-blur-none">
-        <div className="flex gap-1 rounded bg-bg p-1">
-          <button
-            type="button"
-            onClick={() => setMode('draw')}
-            className={`min-h-11 rounded px-3 text-sm transition-colors ${
-              mode === 'draw'
-                ? 'bg-surface text-primary shadow-sm'
-                : 'text-mut hover:text-ink'
-            }`}
-          >
-            ✏️ 編集
-          </button>
-          <button
-            type="button"
-            onClick={() => setMode('pan')}
-            className={`min-h-11 rounded px-3 text-sm transition-colors ${
-              mode === 'pan'
-                ? 'bg-surface text-primary shadow-sm'
-                : 'text-mut hover:text-ink'
-            }`}
-          >
-            🖐 スクロール
-          </button>
-        </div>
-        {mode === 'draw' && (
-          <div className="flex gap-1 rounded bg-bg p-1">
-            <button
-              type="button"
-              onClick={() => setTool('rect')}
-              className={`min-h-11 rounded px-3 text-sm transition-colors ${
-                tool === 'rect'
-                  ? 'bg-surface text-primary shadow-sm'
-                  : 'text-mut hover:text-ink'
-              }`}
-            >
-              ▭ 四角
-            </button>
-            <button
-              type="button"
-              onClick={() => setTool('stamp')}
-              className={`min-h-11 rounded px-3 text-sm transition-colors ${
-                tool === 'stamp'
-                  ? 'bg-surface text-primary shadow-sm'
-                  : 'text-mut hover:text-ink'
-              }`}
-            >
-              ⚪ 丸スタンプ
-            </button>
-          </div>
+        {selectedMask && (
+          <SelectionBar
+            onResize={resizeMask}
+            onDelete={deleteSelected}
+            canShrink={
+              Math.min(selectedMask.rect.width, selectedMask.rect.height) > MIN_MASK_SIZE
+            }
+            canGrow={
+              selectedMask.rect.width < image.width || selectedMask.rect.height < image.height
+            }
+          />
         )}
-        <button
-          type="button"
-          onClick={handleUndo}
-          disabled={!canUndo}
-          className="min-h-11 rounded bg-bg px-3 text-sm font-medium text-ink disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          ↩︎ 元に戻す
-        </button>
-        <button
-          type="button"
-          onClick={deleteSelected}
-          disabled={!selectedId}
-          className="min-h-11 rounded-xl bg-danger/10 px-3 text-sm font-medium text-danger disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          選択したマスクを削除
-        </button>
-        <div className="flex w-full gap-2 sm:hidden">
-          {shareSupported && (
-            <button
-              type="button"
-              onClick={onShare}
-              disabled={exportBusy}
-              className="min-h-11 flex-1 rounded border border-primary px-3 text-sm font-medium text-primary disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              {shareLabel}
-            </button>
-          )}
-          <button
-            type="button"
-            onClick={onDownload}
-            disabled={exportBusy}
-            className="min-h-11 flex-1 rounded-xl bg-primary px-3 text-sm font-medium text-on-primary disabled:cursor-not-allowed disabled:opacity-40"
-          >
-            {downloadLabel}
-          </button>
-        </div>
-        {exportError && <p className="w-full text-xs text-danger sm:hidden">{exportError}</p>}
+        <EditToolBar
+          tool={tool}
+          onToolChange={handleToolChange}
+          canUndo={canUndo}
+          onUndo={handleUndo}
+          onDownload={onDownload}
+          downloadLabel={downloadLabel}
+          onShare={onShare}
+          shareLabel={shareLabel}
+          shareSupported={shareSupported}
+          exportBusy={exportBusy}
+        />
+        {exportError && <p className="w-full text-aux text-danger sm:hidden">{exportError}</p>}
       </div>
     </div>
   )
