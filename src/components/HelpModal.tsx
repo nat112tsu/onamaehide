@@ -9,24 +9,24 @@ export function HelpModal({ onClose }: HelpModalProps) {
       onClick={onClose}
     >
       <div
-        className="flex max-h-[85dvh] w-full max-w-2xl flex-col rounded-lg bg-white shadow-xl"
+        className="flex max-h-[85dvh] w-full max-w-2xl flex-col rounded-lg bg-surface shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <div className="flex shrink-0 items-center justify-between border-b border-slate-100 p-5 pb-4">
-          <h2 className="text-lg font-semibold text-slate-800">使い方</h2>
+        <div className="flex shrink-0 items-center justify-between border-b border-line p-5 pb-4">
+          <h2 className="text-lg font-semibold text-ink">使い方</h2>
           <button
             type="button"
             onClick={onClose}
-            className="rounded p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded p-1 text-mut hover:bg-bg hover:text-ink"
             aria-label="閉じる"
           >
             ×
           </button>
         </div>
 
-        <div className="space-y-5 overflow-y-auto p-5 pt-4 text-sm leading-relaxed text-slate-700">
+        <div className="space-y-5 overflow-y-auto p-5 pt-4 text-sm leading-relaxed text-ink">
           <section>
-            <h3 className="mb-1 font-medium text-slate-800">このツールについて</h3>
+            <h3 className="mb-1 font-medium text-ink">このツールについて</h3>
             <p>
               キャラクターチャット/ロールプレイアプリのスクリーンショットから、自分の表示名を
               自動で見つけて塗りつぶせるツールです。画像は一切サーバーに送信されず、すべての
@@ -35,7 +35,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           </section>
 
           <section>
-            <h3 className="mb-1 font-medium text-slate-800">基本の流れ</h3>
+            <h3 className="mb-1 font-medium text-ink">基本の流れ</h3>
             <ol className="list-decimal space-y-1 pl-5">
               <li>
                 「マスクする名前を登録」欄に、隠したい表示名を入力して「追加」します。
@@ -58,7 +58,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           </section>
 
           <section>
-            <h3 className="mb-1 font-medium text-slate-800">ダウンロードについて</h3>
+            <h3 className="mb-1 font-medium text-ink">ダウンロードについて</h3>
             <ul className="list-disc space-y-1 pl-5">
               <li>
                 アップロードした画像が1枚のときは「PNGをダウンロード」ボタンが表示され、
@@ -72,9 +72,9 @@ export function HelpModal({ onClose }: HelpModalProps) {
               </li>
               <li>
                 ファイル名は元の画像名に「_masked」を付けたもの（例:
-                <code className="rounded bg-slate-100 px-1">screenshot_masked.png</code>
+                <code className="rounded bg-bg px-1">screenshot_masked.png</code>
                 ）になります。ZIPの場合はさらに
-                <code className="rounded bg-slate-100 px-1">masked_images.zip</code>
+                <code className="rounded bg-bg px-1">masked_images.zip</code>
                 という名前でまとめられます。
               </li>
               <li>
@@ -89,7 +89,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           </section>
 
           <section>
-            <h3 className="mb-1 font-medium text-slate-800">共有について（スマートフォン向け）</h3>
+            <h3 className="mb-1 font-medium text-ink">共有について（スマートフォン向け）</h3>
             <ul className="list-disc space-y-1 pl-5">
               <li>
                 「📤 共有」ボタンを押すと端末の共有メニューが開き、マスク済みの画像をそのまま
@@ -114,7 +114,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           </section>
 
           <section>
-            <h3 className="mb-1 font-medium text-slate-800">手動でのマスク編集</h3>
+            <h3 className="mb-1 font-medium text-ink">手動でのマスク編集</h3>
             <ul className="list-disc space-y-1 pl-5">
               <li>
                 マスクを編集するには、まず「✏️ 編集」モードに切り替えます。
@@ -144,7 +144,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           </section>
 
           <section>
-            <h3 className="mb-1 font-medium text-slate-800">その他の設定</h3>
+            <h3 className="mb-1 font-medium text-ink">その他の設定</h3>
             <ul className="list-disc space-y-1 pl-5">
               <li>「塗りつぶし色」でマスクの色を変更できます（初期設定は白です）。</li>
               <li>「OCR検出枠を表示」で、文字として認識された箇所を枠で確認できます。</li>
@@ -155,7 +155,7 @@ export function HelpModal({ onClose }: HelpModalProps) {
           </section>
 
           <section>
-            <h3 className="mb-1 font-medium text-slate-800">うまく検出されないときは</h3>
+            <h3 className="mb-1 font-medium text-ink">うまく検出されないときは</h3>
             <p>
               OCRの精度により、まれに名前が検出されないことがあります。「OCR検出枠を表示」で
               実際に検出された文字と登録名の表記が一致しているか確認するか、手動でマスクを

@@ -32,33 +32,33 @@ export function Toolbar({
   ocrRunning,
 }: ToolbarProps) {
   return (
-    <div className="flex flex-wrap items-center gap-4 rounded border border-slate-200 bg-white p-3">
-      <label className="flex min-h-11 items-center gap-2 text-sm text-slate-500">
+    <div className="flex flex-wrap items-center gap-4 rounded-2xl border border-line bg-surface p-3">
+      <label className="flex min-h-11 items-center gap-2 text-sm text-mut">
         塗りつぶし色
         <input
           type="color"
           value={maskColor}
           onChange={(e) => onMaskColorChange(e.target.value)}
-          className="h-9 w-12 cursor-pointer rounded border border-slate-200"
+          className="h-9 w-12 cursor-pointer rounded border border-line"
         />
       </label>
 
-      <label className="flex min-h-11 items-center gap-2 text-sm text-slate-500">
+      <label className="flex min-h-11 items-center gap-2 text-sm text-mut">
         <input
           type="checkbox"
           checked={showOcrOverlay}
           onChange={(e) => onShowOcrOverlayChange(e.target.checked)}
-          className="size-5 accent-indigo-600"
+          className="size-5 accent-primary"
         />
         OCR検出枠を表示
       </label>
 
-      <label className="flex min-h-11 items-center gap-2 text-sm text-slate-500">
+      <label className="flex min-h-11 items-center gap-2 text-sm text-mut">
         <input
           type="checkbox"
           checked={showMaskPreview}
           onChange={(e) => onShowMaskPreviewChange(e.target.checked)}
-          className="size-5 accent-indigo-600"
+          className="size-5 accent-primary"
         />
         マスク適用プレビュー（Before/After）
       </label>
@@ -67,7 +67,7 @@ export function Toolbar({
         type="button"
         onClick={onRerunOcr}
         disabled={ocrRunning}
-        className="min-h-11 rounded border border-slate-300 px-3 text-sm text-slate-600 hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-40"
+        className="min-h-11 rounded-xl border border-line px-3 text-sm text-ink hover:bg-bg disabled:cursor-not-allowed disabled:opacity-40"
       >
         {ocrRunning ? '検出中…' : '🔄 文字を再検出'}
       </button>
@@ -79,7 +79,7 @@ export function Toolbar({
             type="button"
             onClick={onShare}
             disabled={exportBusy}
-            className="min-h-11 rounded border border-indigo-300 px-4 text-sm font-medium text-indigo-700 hover:bg-indigo-50 disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-11 rounded-xl border border-primary px-4 text-sm font-medium text-primary hover:bg-primary-soft disabled:cursor-not-allowed disabled:opacity-40"
           >
             {shareLabel}
           </button>
@@ -88,7 +88,7 @@ export function Toolbar({
           type="button"
           onClick={onDownload}
           disabled={exportBusy}
-          className="min-h-11 rounded bg-indigo-600 px-4 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+          className="min-h-11 rounded-xl bg-primary px-4 text-sm font-medium text-on-primary disabled:cursor-not-allowed disabled:opacity-40"
         >
           {downloadLabel}
         </button>

@@ -450,7 +450,7 @@ export function ImageCanvas({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="max-h-[70vh] overflow-auto rounded border border-slate-200 bg-slate-100">
+      <div className="max-h-[70vh] overflow-auto rounded border border-line bg-bg">
         <canvas
           ref={canvasRef}
           onPointerDown={handlePointerDown}
@@ -463,68 +463,68 @@ export function ImageCanvas({
       </div>
       <div className="flex flex-wrap items-center gap-2">
         {mode === 'draw' && tool === 'rect' && registeredNameLength > 0 && (
-          <div className="flex items-center gap-1 rounded bg-slate-100 p-1">
+          <div className="flex items-center gap-1 rounded bg-bg p-1">
             <button
               type="button"
               onClick={() => setCharSize((s) => Math.max(MIN_CHAR_SIZE, s - CHAR_SIZE_STEP))}
               disabled={charSize <= MIN_CHAR_SIZE}
-              className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
             >
               −
             </button>
-            <span className="min-w-[4rem] text-center text-xs text-slate-500">
+            <span className="min-w-[4rem] text-center text-xs text-mut">
               文字幅 {charSize}px
             </span>
             <button
               type="button"
               onClick={() => setCharSize((s) => Math.min(MAX_CHAR_SIZE, s + CHAR_SIZE_STEP))}
               disabled={charSize >= MAX_CHAR_SIZE}
-              className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
             >
               ＋
             </button>
           </div>
         )}
         {mode === 'draw' && tool === 'stamp' && (
-          <div className="flex items-center gap-1 rounded bg-slate-100 p-1">
+          <div className="flex items-center gap-1 rounded bg-bg p-1">
             <button
               type="button"
               onClick={() => setStampSize((s) => Math.max(MIN_STAMP_SIZE, s - STAMP_SIZE_STEP))}
               disabled={stampSize <= MIN_STAMP_SIZE}
-              className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
             >
               −
             </button>
-            <span className="min-w-[4rem] text-center text-xs text-slate-500">
+            <span className="min-w-[4rem] text-center text-xs text-mut">
               スタンプ {stampSize}px
             </span>
             <button
               type="button"
               onClick={() => setStampSize((s) => Math.min(MAX_STAMP_SIZE, s + STAMP_SIZE_STEP))}
               disabled={stampSize >= MAX_STAMP_SIZE}
-              className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
             >
               ＋
             </button>
           </div>
         )}
-        <div className="flex items-center gap-1 rounded bg-slate-100 p-1">
+        <div className="flex items-center gap-1 rounded bg-bg p-1">
           <button
             type="button"
             onClick={() => setZoom((z) => Math.max(1, Math.round((z - 0.25) * 100) / 100))}
             disabled={zoom <= 1}
-            className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
           >
             −
           </button>
-          <span className="min-w-[3rem] text-center text-xs text-slate-500">
+          <span className="min-w-[3rem] text-center text-xs text-mut">
             {Math.round(zoom * 100)}%
           </span>
           <button
             type="button"
             onClick={() => setZoom((z) => Math.min(3, Math.round((z + 0.25) * 100) / 100))}
             disabled={zoom >= 3}
-            className="min-h-11 min-w-11 rounded text-sm text-slate-600 disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-11 min-w-11 rounded text-sm text-ink disabled:cursor-not-allowed disabled:opacity-40"
           >
             ＋
           </button>
@@ -532,13 +532,13 @@ export function ImageCanvas({
             <button
               type="button"
               onClick={() => setZoom(1)}
-              className="min-h-11 rounded px-3 text-xs text-indigo-600"
+              className="min-h-11 rounded px-3 text-xs text-primary"
             >
               リセット
             </button>
           )}
         </div>
-        <span className="text-xs text-slate-400">
+        <span className="text-xs text-mut">
           {mode !== 'draw'
             ? '画像内を指でスクロールできます。マスクを編集する場合は「編集」に切り替えてください'
             : tool === 'stamp'
@@ -550,15 +550,15 @@ export function ImageCanvas({
       </div>
       {/* 主要操作バー: モバイルではキャンバスが画面外に続く間だけ下部に固定表示される
           （stickyなので通過後は流れに戻り、フッター等を覆わない） */}
-      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t border-slate-200 bg-white/95 px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur sm:static sm:z-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-0 sm:pb-0 sm:backdrop-blur-none">
-        <div className="flex gap-1 rounded bg-slate-100 p-1">
+      <div className="sticky bottom-0 z-10 -mx-4 flex flex-wrap items-center gap-2 border-t border-line bg-surface/95 px-4 pt-2 pb-[calc(0.5rem+env(safe-area-inset-bottom))] backdrop-blur sm:static sm:z-auto sm:mx-0 sm:border-0 sm:bg-transparent sm:px-0 sm:pt-0 sm:pb-0 sm:backdrop-blur-none">
+        <div className="flex gap-1 rounded bg-bg p-1">
           <button
             type="button"
             onClick={() => setMode('draw')}
             className={`min-h-11 rounded px-3 text-sm transition-colors ${
               mode === 'draw'
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-surface text-primary shadow-sm'
+                : 'text-mut hover:text-ink'
             }`}
           >
             ✏️ 編集
@@ -568,22 +568,22 @@ export function ImageCanvas({
             onClick={() => setMode('pan')}
             className={`min-h-11 rounded px-3 text-sm transition-colors ${
               mode === 'pan'
-                ? 'bg-white text-indigo-600 shadow-sm'
-                : 'text-slate-500 hover:text-slate-700'
+                ? 'bg-surface text-primary shadow-sm'
+                : 'text-mut hover:text-ink'
             }`}
           >
             🖐 スクロール
           </button>
         </div>
         {mode === 'draw' && (
-          <div className="flex gap-1 rounded bg-slate-100 p-1">
+          <div className="flex gap-1 rounded bg-bg p-1">
             <button
               type="button"
               onClick={() => setTool('rect')}
               className={`min-h-11 rounded px-3 text-sm transition-colors ${
                 tool === 'rect'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-surface text-primary shadow-sm'
+                  : 'text-mut hover:text-ink'
               }`}
             >
               ▭ 四角
@@ -593,8 +593,8 @@ export function ImageCanvas({
               onClick={() => setTool('stamp')}
               className={`min-h-11 rounded px-3 text-sm transition-colors ${
                 tool === 'stamp'
-                  ? 'bg-white text-indigo-600 shadow-sm'
-                  : 'text-slate-500 hover:text-slate-700'
+                  ? 'bg-surface text-primary shadow-sm'
+                  : 'text-mut hover:text-ink'
               }`}
             >
               ⚪ 丸スタンプ
@@ -605,7 +605,7 @@ export function ImageCanvas({
           type="button"
           onClick={handleUndo}
           disabled={!canUndo}
-          className="min-h-11 rounded bg-slate-100 px-3 text-sm font-medium text-slate-700 disabled:cursor-not-allowed disabled:opacity-40"
+          className="min-h-11 rounded bg-bg px-3 text-sm font-medium text-ink disabled:cursor-not-allowed disabled:opacity-40"
         >
           ↩︎ 元に戻す
         </button>
@@ -613,7 +613,7 @@ export function ImageCanvas({
           type="button"
           onClick={deleteSelected}
           disabled={!selectedId}
-          className="min-h-11 rounded bg-red-50 px-3 text-sm font-medium text-red-600 disabled:cursor-not-allowed disabled:opacity-40"
+          className="min-h-11 rounded-xl bg-danger/10 px-3 text-sm font-medium text-danger disabled:cursor-not-allowed disabled:opacity-40"
         >
           選択したマスクを削除
         </button>
@@ -623,7 +623,7 @@ export function ImageCanvas({
               type="button"
               onClick={onShare}
               disabled={exportBusy}
-              className="min-h-11 flex-1 rounded border border-indigo-300 px-3 text-sm font-medium text-indigo-700 disabled:cursor-not-allowed disabled:opacity-40"
+              className="min-h-11 flex-1 rounded border border-primary px-3 text-sm font-medium text-primary disabled:cursor-not-allowed disabled:opacity-40"
             >
               {shareLabel}
             </button>
@@ -632,12 +632,12 @@ export function ImageCanvas({
             type="button"
             onClick={onDownload}
             disabled={exportBusy}
-            className="min-h-11 flex-1 rounded bg-indigo-600 px-3 text-sm font-medium text-white disabled:cursor-not-allowed disabled:opacity-40"
+            className="min-h-11 flex-1 rounded-xl bg-primary px-3 text-sm font-medium text-on-primary disabled:cursor-not-allowed disabled:opacity-40"
           >
             {downloadLabel}
           </button>
         </div>
-        {exportError && <p className="w-full text-xs text-red-600 sm:hidden">{exportError}</p>}
+        {exportError && <p className="w-full text-xs text-danger sm:hidden">{exportError}</p>}
       </div>
     </div>
   )

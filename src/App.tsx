@@ -16,6 +16,20 @@ import { downloadAllAsZip } from './lib/zipExport'
 import { canShareFiles, shareFiles, shareMaskedImages } from './lib/shareImage'
 import { detectNameMasks } from './lib/nameDetection'
 
+type Theme = 'light' | 'dark'
+
+const THEME_STORAGE_KEY = 'onamaehide-theme'
+
+function getInitialTheme(): Theme {
+  try {
+    const saved = localStorage.getItem(THEME_STORAGE_KEY)
+    if (saved === 'light' || saved === 'dark') return saved
+  } catch {
+    // プライベートブラウジング等でlocalStorageが使えない場合は端末設定にまかせる
+  }
+  return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light'
+}
+
 function App() {
   const {
     images,
@@ -45,6 +59,16 @@ function App() {
   const [shareRetry, setShareRetry] = useState(false)
   const pendingShareRef = useRef<{ files: File[]; signature: string } | null>(null)
   const shareSupported = useMemo(() => canShareFiles(), [])
+  const [theme, setTheme] = useState<Theme>(getInitialTheme)
+
+  useEffect(() => {
+    document.documentElement.classList.toggle('dark', theme === 'dark')
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, theme)
+    } catch {
+      // 保存できなくても表示自体は切り替わるので無視する
+    }
+  }, [theme])
 
   const activeImage = images.find((img) => img.id === activeId) ?? images[0] ?? null
   const isOcrRunning = images.some((img) => img.ocrStatus === 'running')
@@ -200,20 +224,28 @@ function App() {
           : '📤 共有'
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-900">
-      <header className="flex items-start justify-between border-b border-slate-200 bg-white px-4 py-3">
+    <div className="min-h-screen bg-bg text-ink">
+      <header className="flex items-start justify-between border-b border-line bg-surface px-4 py-3">
         <div>
           <h1 className="text-lg font-semibold">おなまえかくし</h1>
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-mut">
             画像は一切サーバーに送信されません。すべての処理はこのブラウザ内で完結します。
           </p>
         </div>
         <div className="flex shrink-0 items-center gap-2">
+          <button
+            type="button"
+            onClick={() => setTheme((t) => (t === 'dark' ? 'light' : 'dark'))}
+            aria-label={theme === 'dark' ? 'ライトモードに切り替え' : 'ダークモードに切り替え'}
+            className="min-h-11 min-w-11 rounded-xl border border-line text-sm text-ink hover:bg-bg"
+          >
+            {theme === 'dark' ? '☀️' : '🌙'}
+          </button>
           {(images.length > 0 || registeredNames.length > 0 || uploadErrors.length > 0) && (
             <button
               type="button"
               onClick={handleClearAll}
-              className="min-h-11 rounded border border-slate-300 px-3 text-sm text-slate-600 hover:bg-slate-50"
+              className="min-h-11 rounded-xl border border-line px-3 text-sm text-ink hover:bg-bg"
             >
               すべてクリア
             </button>
@@ -221,7 +253,7 @@ function App() {
           <button
             type="button"
             onClick={() => setShowHelp(true)}
-            className="min-h-11 rounded border border-slate-300 px-3 text-sm text-slate-600 hover:bg-slate-50"
+            className="min-h-11 rounded-xl border border-line px-3 text-sm text-ink hover:bg-bg"
           >
             使い方
           </button>
@@ -240,14 +272,14 @@ function App() {
         <UploadZone onFilesSelected={handleFilesSelected} errors={uploadErrors} />
 
         {isOcrRunning && (
-          <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <div className="rounded-2xl border border-line bg-primary-soft px-3 py-2 text-sm text-ink">
             文字を検出中です…画像サイズや端末によっては1分以上かかることがあります。
             ページを閉じずにそのままお待ちください。
           </div>
         )}
 
         {!isOcrRunning && hasUnmatchedNames && (
-          <div className="rounded border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+          <div className="rounded-2xl border border-line bg-primary-soft px-3 py-2 text-sm text-ink">
             登録した名前に一致する文字列が見つかりませんでした。OCR検出枠を表示して実際に
             検出された文字と登録名の表記が一致しているか確認するか、手動でマスクを追加して
             ください。
@@ -255,7 +287,7 @@ function App() {
         )}
 
         {exportError && (
-          <div className="rounded border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          <div className="rounded-xl border border-danger/30 bg-danger/10 px-3 py-2 text-sm text-danger">
             {exportError}
           </div>
         )}
@@ -267,8 +299,8 @@ function App() {
                 key={img.id}
                 className={`flex items-stretch overflow-hidden rounded border text-sm ${
                   (activeImage?.id ?? images[0]?.id) === img.id
-                    ? 'border-indigo-400 bg-indigo-50 text-indigo-700'
-                    : 'border-slate-200 bg-white text-slate-600'
+                    ? 'border-primary bg-primary-soft text-primary'
+                    : 'border-line bg-surface text-ink'
                 }`}
               >
                 <button
@@ -278,10 +310,10 @@ function App() {
                 >
                   <span className="max-w-[10rem] truncate">{img.file.name}</span>
                   {img.ocrStatus === 'running' && (
-                    <span className="text-xs text-slate-400">OCR中…</span>
+                    <span className="text-xs text-mut">OCR中…</span>
                   )}
                   {img.ocrStatus === 'error' && (
-                    <span className="text-xs text-red-500">OCR失敗</span>
+                    <span className="text-xs text-danger">OCR失敗</span>
                   )}
                 </button>
                 <button
@@ -291,7 +323,7 @@ function App() {
                     if (activeId === img.id) setActiveId(null)
                   }}
                   aria-label={`${img.file.name} を削除`}
-                  className="flex min-w-11 items-center justify-center text-slate-400 hover:text-red-500"
+                  className="flex min-w-11 items-center justify-center text-mut hover:text-danger"
                 >
                   ×
                 </button>
@@ -338,19 +370,19 @@ function App() {
             />
           </>
         ) : (
-          <p className="text-sm text-slate-400">
+          <p className="text-sm text-mut">
             画像をアップロードすると、ここに編集画面が表示されます。
           </p>
         )}
       </main>
 
-      <footer className="mx-auto max-w-5xl px-4 py-6 text-center text-xs text-slate-400">
+      <footer className="mx-auto max-w-5xl px-4 py-6 text-center text-xs text-mut">
         <p>
           <a
             href="https://marshmallow-qa.com/lz48smbin5dkc2b?t=DiRKR6&utm_medium=url_text&utm_source=promotion"
             target="_blank"
             rel="noopener noreferrer"
-            className="underline hover:text-slate-600"
+            className="underline hover:text-ink"
           >
             お問い合わせ・ご要望はこちら（マシュマロ）
           </a>

@@ -22,3 +22,7 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Design のハンドオフ一式（デザイン検討用。実装には含めない）
+untitled/
+*-handoff.zip

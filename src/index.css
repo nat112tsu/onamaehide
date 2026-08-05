@@ -24,6 +24,44 @@
 
 @theme {
   --font-sans: 'M PLUS Rounded 1c', system-ui, 'Hiragino Sans', 'Hiragino Kaku Gothic ProN', 'Yu Gothic', sans-serif;
+
+  /* 配色トークン（ライト＝みずいろ）。ダークは下の .dark で同じ変数を差し替える。
+     主色は明度だけを変え、彩度・色相は共通にしている。 */
+  --color-bg: #f6f8fa;
+  --color-surface: #ffffff;
+  --color-ink: #232a33;
+  --color-mut: #7a8593;
+  --color-line: #e1e6ec;
+  --color-primary: #3d6fb4;
+  --color-primary-soft: #e4edf7;
+  --color-danger: #b04a44;
+  /* 主色の上に載せる文字色。ダークでは主色が明るくなるため反転させる */
+  --color-on-primary: #ffffff;
+
+  /* 補助・キャプション。見出し16=text-base、本文14=text-sm はTailwind既定を使う */
+  --text-aux: 11.5px;
+  --text-cap: 10.5px;
+}
+
+/* ダーク（よぞら）。@themeはlayer内に出力されるため、layer外のこの指定が優先される */
+.dark {
+  --color-bg: #1c1f26;
+  --color-surface: #252932;
+  --color-ink: #edeae4;
+  --color-mut: #8e93a0;
+  --color-line: #333845;
+  --color-primary: #6e9bd8;
+  --color-primary-soft: #2c3543;
+  --color-danger: #c25b5b;
+  --color-on-primary: #1c1f26;
+}
+
+/* チェックボックスやカラーピッカーなどのネイティブUIをテーマに追従させる */
+:root {
+  color-scheme: light;
+}
+.dark {
+  color-scheme: dark;
 }
 
 body {
