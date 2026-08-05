@@ -130,8 +130,12 @@ function App() {
     }
   }
 
-  // いまどこまで進んだかを状態から算出する（名前→画像→保存）
-  const currentStep: Step = images.length > 0 ? 3 : registeredNames.length > 0 ? 2 : 1
+  // いまどこまで進んだかを状態から算出する（名前→画像→保存）。
+  // 名前を登録せずに画像だけ入れる操作もできるため、完了は手順ごとに独立して判定する。
+  const nameDone = registeredNames.length > 0
+  const imageDone = images.length > 0
+  const completedSteps: Step[] = [...(nameDone ? [1 as Step] : []), ...(imageDone ? [2 as Step] : [])]
+  const currentStep: Step = !nameDone ? 1 : !imageDone ? 2 : 3
 
   function handleClearAll() {
     if (!window.confirm('登録した名前とアップロードした画像をすべて消去します。よろしいですか？')) {
@@ -298,7 +302,7 @@ function App() {
       )}
 
       <main className="mx-auto flex max-w-5xl flex-col gap-4 p-4">
-        <StepIndicator current={currentStep} />
+        <StepIndicator current={currentStep} completed={completedSteps} />
 
         <NameRegistryPanel
           key={clearCount}

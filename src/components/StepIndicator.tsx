@@ -2,6 +2,9 @@ export type Step = 1 | 2 | 3
 
 interface StepIndicatorProps {
   current: Step
+  /** 完了した手順。手順は前から順に終わるとは限らない（名前を登録せず画像だけ入れる等）ため、
+      currentからの推測ではなく明示的に受け取る */
+  completed: readonly Step[]
 }
 
 const STEPS: { value: Step; label: string }[] = [
@@ -10,11 +13,11 @@ const STEPS: { value: Step; label: string }[] = [
   { value: 3, label: '保存' },
 ]
 
-export function StepIndicator({ current }: StepIndicatorProps) {
+export function StepIndicator({ current, completed }: StepIndicatorProps) {
   return (
     <ol className="flex gap-2" aria-label="進行状況">
       {STEPS.map((step) => {
-        const done = step.value < current
+        const done = completed.includes(step.value)
         const active = step.value === current
         return (
           <li

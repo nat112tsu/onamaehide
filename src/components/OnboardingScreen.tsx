@@ -1,3 +1,5 @@
+import { useEffect, useRef } from 'react'
+
 interface OnboardingScreenProps {
   onStart: () => void
 }
@@ -9,8 +11,42 @@ const STEPS: { title: string; note?: string }[] = [
 ]
 
 export function OnboardingScreen({ onStart }: OnboardingScreenProps) {
+  const rootRef = useRef<HTMLDivElement>(null)
+
+  // 全画面で覆う以上、背後のヘッダー等にキーボードで入り込めないようにする
+  // （そのまま「使い方」を開けてしまい、モーダルが二重に重なるため）
+  useEffect(() => {
+    const root = rootRef.current
+    if (!root) return
+    root.querySelector<HTMLButtonElement>('[data-autofocus]')?.focus()
+
+    function handleKeyDown(e: KeyboardEvent) {
+      if (e.key !== 'Tab' || !root) return
+      const focusable = root.querySelectorAll<HTMLElement>('button')
+      if (focusable.length === 0) return
+      const first = focusable[0]
+      const last = focusable[focusable.length - 1]
+      if (e.shiftKey && document.activeElement === first) {
+        e.preventDefault()
+        last.focus()
+      } else if (!e.shiftKey && document.activeElement === last) {
+        e.preventDefault()
+        first.focus()
+      }
+    }
+
+    document.addEventListener('keydown', handleKeyDown)
+    return () => document.removeEventListener('keydown', handleKeyDown)
+  }, [])
+
   return (
-    <div className="fixed inset-0 z-50 overflow-y-auto bg-bg">
+    <div
+      ref={rootRef}
+      role="dialog"
+      aria-modal="true"
+      aria-labelledby="onboarding-title"
+      className="fixed inset-0 z-50 overflow-y-auto bg-bg"
+    >
       <div className="mx-auto flex min-h-full max-w-md flex-col px-5 pb-[calc(1.25rem+env(safe-area-inset-bottom))]">
         <div className="flex h-13 items-center justify-end">
           <button
@@ -23,7 +59,7 @@ export function OnboardingScreen({ onStart }: OnboardingScreenProps) {
         </div>
 
         <div className="pt-6">
-          <h1 className="text-2xl leading-relaxed font-bold text-ink">
+          <h1 id="onboarding-title" className="text-2xl leading-relaxed font-bold text-ink">
             スクショの名前を
             <br />
             かくします
@@ -58,6 +94,7 @@ export function OnboardingScreen({ onStart }: OnboardingScreenProps) {
 
         <button
           type="button"
+          data-autofocus
           onClick={onStart}
           className="mt-3.5 h-14 rounded-2xl bg-primary text-base font-bold text-on-primary"
         >
